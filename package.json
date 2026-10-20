@@ -8,12 +8,16 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test:intent": "tsx tests/assistant.intent.ts",
+    "test:dynamodb": "tsx --test tests/dynamodb.storage.ts",
+    "db:template": "node scripts/generate-dynamodb-template.cjs",
     "start": "node dist/server.js",
     "db:seed": "tsx src/seed.ts",
     "db:profile-requests": "tsx scripts/migrate-profile-requests.ts",
     "performance:demo": "tsx scripts/seed-performance-demo.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1154.0",
+    "@aws-sdk/lib-dynamodb": "^3.1154.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.5.1",
     "cors": "^2.8.5",
