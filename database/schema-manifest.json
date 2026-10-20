@@ -1,0 +1,352 @@
+{
+  "schemaOnly": true,
+  "tables": [
+    "attendance_exceptions",
+    "attendance_raw_logs",
+    "attendance_records",
+    "attendance_roster_assignments",
+    "attendance_roster_calendars",
+    "attendance_roster_group_shifts",
+    "attendance_roster_groups",
+    "attendance_roster_repair_backups",
+    "attendance_shifts",
+    "calendarday",
+    "calendargroup",
+    "contracts",
+    "daytype",
+    "designations",
+    "documents",
+    "earned_leaves",
+    "eim_attachment_types",
+    "eim_audit_logs",
+    "eim_benefit_salary_grades",
+    "eim_benefits",
+    "eim_blood_groups",
+    "eim_companies",
+    "eim_corporate_titles",
+    "eim_cost_centres",
+    "eim_currencies",
+    "eim_dynamic_fields",
+    "eim_employee_categories",
+    "eim_employee_groups",
+    "eim_employee_titles",
+    "eim_extracurricular_categories",
+    "eim_extracurricular_types",
+    "eim_functional_roles",
+    "eim_functions",
+    "eim_genders",
+    "eim_geography",
+    "eim_hierarchy_config",
+    "eim_hierarchy_settings",
+    "eim_job_profiles",
+    "eim_languages",
+    "eim_locations",
+    "eim_marital_statuses",
+    "eim_membership_types",
+    "eim_nationalities",
+    "eim_proficiency_levels",
+    "eim_qual_classifications",
+    "eim_qual_types",
+    "eim_quals",
+    "eim_rating_methods",
+    "eim_relationship_types",
+    "eim_religions",
+    "eim_salary_grades",
+    "eim_statutory_classifications",
+    "eim_structure_history",
+    "eim_structures",
+    "eim_subjects",
+    "employee_information_audit",
+    "employee_information_audit_log",
+    "employee_information_audit_logs",
+    "employee_information_bank_details",
+    "employee_information_contact_details",
+    "employee_information_employee_attachments",
+    "employee_information_employees",
+    "employee_information_personal_details",
+    "employee_information_resignation_details",
+    "employee_information_workstation_details",
+    "employee_profile_extras",
+    "employee_requests",
+    "employee_salary_histories",
+    "employment_types",
+    "holidaycalendar",
+    "hr_assistant_actions",
+    "hr_assistant_changes",
+    "hr_assistant_conversations",
+    "hr_assistant_extensions",
+    "hr_assistant_field_values",
+    "hr_assistant_messages",
+    "hr_assistant_read_updates",
+    "hr_assistant_settings",
+    "hr_performance_audit",
+    "hr_performance_cycles",
+    "hr_performance_library",
+    "hr_performance_notifications",
+    "hr_performance_reviews",
+    "hr_performance_templates",
+    "hr_repair_migrations",
+    "invites",
+    "leave_applications",
+    "leave_approval_history",
+    "leave_entitlements",
+    "leave_group_types",
+    "leave_groups",
+    "leave_rule_scripts",
+    "leave_types",
+    "leave_years",
+    "onboarding_profiles",
+    "performance_360_feedback",
+    "performance_360_requests",
+    "performance_audit_logs",
+    "performance_cycle_eligible_employees",
+    "performance_cycles",
+    "performance_development_actions",
+    "performance_development_plans",
+    "performance_feedback",
+    "performance_goal_checkins",
+    "performance_goals",
+    "performance_review_answers",
+    "performance_review_history",
+    "performance_review_template_question_options",
+    "performance_review_template_questions",
+    "performance_review_template_sections",
+    "performance_review_templates",
+    "performance_reviews",
+    "reporting_hierarchy_audit",
+    "reporting_hierarchy_levels",
+    "reporting_relationships",
+    "user_module_permissions",
+    "users"
+  ],
+  "views": [],
+  "triggers": [],
+  "routines": [],
+  "events": [],
+  "foreignKeys": [
+    {
+      "tableName": "employee_information_employees",
+      "columnName": "reportingManagerId",
+      "constraintName": "fk_emp_reporting_manager",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "employee_profile_extras",
+      "columnName": "employeeId",
+      "constraintName": "fk_profile_extras_employee",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "hr_performance_notifications",
+      "columnName": "review_id",
+      "constraintName": "hr_pm_notification_review",
+      "referencedTable": "hr_performance_reviews",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "hr_performance_reviews",
+      "columnName": "cycle_id",
+      "constraintName": "hr_pm_review_cycle",
+      "referencedTable": "hr_performance_cycles",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_360_feedback",
+      "columnName": "review_id",
+      "constraintName": "fk_perf_360_review",
+      "referencedTable": "performance_reviews",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_360_feedback",
+      "columnName": "reviewer_id",
+      "constraintName": "fk_perf_360_reviewer",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_audit_logs",
+      "columnName": "employee_id",
+      "constraintName": "performance_audit_logs_ibfk_1",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_cycles",
+      "columnName": "template_id",
+      "constraintName": "fk_perf_cycles_template",
+      "referencedTable": "performance_review_templates",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_development_actions",
+      "columnName": "created_by",
+      "constraintName": "fk_perf_dev_actions_created_by",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_development_actions",
+      "columnName": "employee_id",
+      "constraintName": "fk_perf_dev_actions_employee",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_development_actions",
+      "columnName": "review_id",
+      "constraintName": "fk_perf_dev_actions_review",
+      "referencedTable": "performance_reviews",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_development_actions",
+      "columnName": "updated_by",
+      "constraintName": "fk_perf_dev_actions_updated_by",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_development_plans",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_development_plans_ibfk_1",
+      "referencedTable": "performance_cycles",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_development_plans",
+      "columnName": "employee_id",
+      "constraintName": "performance_development_plans_ibfk_2",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_feedback",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_feedback_ibfk_1",
+      "referencedTable": "performance_cycles",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_feedback",
+      "columnName": "employee_id",
+      "constraintName": "performance_feedback_ibfk_2",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_feedback",
+      "columnName": "from_employee_id",
+      "constraintName": "performance_feedback_ibfk_3",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_goal_checkins",
+      "columnName": "created_by",
+      "constraintName": "fk_perf_goal_checkins_created_by",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_goal_checkins",
+      "columnName": "goal_id",
+      "constraintName": "fk_perf_goal_checkins_goal",
+      "referencedTable": "performance_goals",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_goals",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_goals_ibfk_1",
+      "referencedTable": "performance_cycles",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_goals",
+      "columnName": "employee_id",
+      "constraintName": "performance_goals_ibfk_2",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_answers",
+      "columnName": "answered_by",
+      "constraintName": "fk_perf_review_answers_employee",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_answers",
+      "columnName": "question_id",
+      "constraintName": "fk_perf_review_answers_question",
+      "referencedTable": "performance_review_template_questions",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_answers",
+      "columnName": "review_id",
+      "constraintName": "fk_perf_review_answers_review",
+      "referencedTable": "performance_reviews",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_template_question_options",
+      "columnName": "question_id",
+      "constraintName": "fk_perf_options_question",
+      "referencedTable": "performance_review_template_questions",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_template_questions",
+      "columnName": "section_id",
+      "constraintName": "fk_perf_template_questions_section",
+      "referencedTable": "performance_review_template_sections",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_template_sections",
+      "columnName": "template_id",
+      "constraintName": "fk_perf_template_sections_template",
+      "referencedTable": "performance_review_templates",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_templates",
+      "columnName": "created_by",
+      "constraintName": "fk_perf_templates_created_by",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_review_templates",
+      "columnName": "updated_by",
+      "constraintName": "fk_perf_templates_updated_by",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_reviews",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_reviews_ibfk_1",
+      "referencedTable": "performance_cycles",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_reviews",
+      "columnName": "employee_id",
+      "constraintName": "performance_reviews_ibfk_2",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "performance_reviews",
+      "columnName": "reviewer_id",
+      "constraintName": "performance_reviews_ibfk_3",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    }
+  ]
+}

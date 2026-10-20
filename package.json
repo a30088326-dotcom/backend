@@ -1,0 +1,41 @@
+{
+  "name": "hr-onboarding-backend",
+  "version": "1.0.0",
+  "description": "HR Onboarding System Backend API",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test:intent": "tsx tests/assistant.intent.ts",
+    "start": "node dist/server.js",
+    "db:seed": "tsx src/seed.ts",
+    "db:profile-requests": "tsx scripts/migrate-profile-requests.ts",
+    "performance:demo": "tsx scripts/seed-performance-demo.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.23.4",
+    "nodemailer": "^6.9.16",
+    "uuid": "^11.0.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^6.4.16",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

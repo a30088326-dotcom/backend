@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+uploads/
+backups/
+repair-audit/
+.env
+.env.*
+!.env.example
+*.log
+*.bak
+*.tsbuildinfo
+.DS_Store
