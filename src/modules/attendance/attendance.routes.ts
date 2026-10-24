@@ -30,6 +30,7 @@ import {
 import { requireAuth, requireAdmin } from '../../middleware/auth';
 import { requireExecutiveReader } from '../../middleware/organization';
 import { requireModuleAction } from '../../middleware/module-action';
+import nativeRoutes from './native.routes';
 
 const router = Router();
 
@@ -72,4 +73,4 @@ router.get('/team-exceptions', getTeamExceptions);
 router.post('/exceptions/:id/resolve', resolveException);
 router.put('/my-attendance/:idOrDate', requireAdmin, updateMyAttendance);
 
-export default router;
+export default process.env.DATABASE_PROVIDER==='dynamodb'?nativeRoutes:router;

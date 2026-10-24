@@ -1,0 +1,26 @@
+import { repository } from '../../storage/repository';
+import { changeReportingNative } from '../../shared/services/organization.service';
+import { dateSchema } from '../performance/rules';
+
+async function nodes(activeOnly=true) {
+  const [employees,personal,users]=await Promise.all([repository().find('employee_information_employees',()=>true),repository().find('employee_information_personal_details',()=>true),repository().find('users',()=>true)]);
+  return employees.filter(e=>!activeOnly||e.status==='Active'&&e.isActive!==0).map(e=>{
+    const p=personal.find(p=>p.employeeId===e.id),name=[p?.firstName,p?.lastName].filter(Boolean).join(' ').trim()||[e.firstName,e.lastName].filter(Boolean).join(' ').trim()||e.callingName||'Employee';
+    const directReportsCount=employees.filter(child=>child.reportingManagerId===e.id&&child.status==='Active'&&child.isActive!==0).length;
+    return {id:e.id,employeeNo:e.employeeNo??e.employeeNumber??'',name,organizationalRank:e.organizationalRank,designation:e.designation,department:e.department,avatar:e.avatar,status:e.status,reportingManagerId:e.reportingManagerId,reportingEffectiveFrom:e.reportingEffectiveFrom,email:users.find(u=>u.id===e.userId)?.email,directReportsCount,hasChildren:directReportsCount>0};
+  }).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+}
+export class NativeReportingHierarchyService {
+  static async getActiveEmployees(search?:string,excludeId?:string){return (await nodes()).filter(e=>e.id!==excludeId&&(!search||[e.name,e.employeeNo,e.designation,e.department].some(value=>String(value||'').toLowerCase().includes(search.toLowerCase())))).map(({id,employeeNo,name,designation,department,avatar,reportingManagerId,hasChildren})=>({id,employeeNo,name,designation,department,avatar,reportingManagerId,hasChildren}));}
+  static async getTreeNodes(parentId?:string){const all=await nodes();return all.filter(e=>parentId?e.reportingManagerId===parentId:!e.reportingManagerId||!all.some(parent=>parent.id===e.reportingManagerId));}
+  static getFullHierarchy(){return nodes();}
+  static async assignManager(employeeId:string,reportingManagerId:string|null,effectiveDate:string,reason:string,changedBy:string){dateSchema.parse(effectiveDate);await repository().transaction(tx=>changeReportingNative(tx,[{employeeId,managerId:reportingManagerId}],changedBy,effectiveDate,reason||'Reporting manager updated'));return {success:true,message:'Reporting manager updated.'};}
+  static async getAuditHistory():Promise<Record<string,any>[]>{const [rows,employees]=await Promise.all([repository().find('reporting_hierarchy_audit',()=>true),nodes(false)]);return rows.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,100).map(({_version,...row})=>({...row,employeeName:employees.find(e=>e.id===row.employee_id)?.name||'Employee',employeeNo:employees.find(e=>e.id===row.employee_id)?.employeeNo||'',previousManagerName:employees.find(e=>e.id===row.previous_manager_id)?.name||null,newManagerName:employees.find(e=>e.id===row.new_manager_id)?.name||null}));}
+  static async getUpwardPath(employeeId:string){const all=await nodes(),seen=new Set<string>(),path:string[]=[];let current:string|null=employeeId;while(current&&!seen.has(current)){seen.add(current);path.push(current);current=all.find(e=>e.id===current)?.reportingManagerId||null;}return path.reverse();}
+  static async getMyEmployeeId(userId:string){return (await repository().find('employee_information_employees',e=>e.userId===userId))[0]?.id||null;}
+  static async getUnassignedEmployees(){return (await nodes()).filter(e=>!e.reportingManagerId&&e.organizationalRank!=='OWNER');}
+  static async bulkUpdateManagers(changes:{employeeId:string;newReportingManagerId:string|null}[],changedBy:string,effectiveDate:string){dateSchema.parse(effectiveDate);await repository().transaction(tx=>changeReportingNative(tx,changes.map(c=>({employeeId:c.employeeId,managerId:c.newReportingManagerId})),changedBy,effectiveDate,'Bulk reporting update'));return {success:true,message:changes.length+' reporting lines updated.'};}
+  static async getMyManager(userId:string){const own=(await repository().find('employee_information_employees',e=>e.userId===userId))[0];if(!own?.reportingManagerId)return null;const manager=(await nodes(false)).find(e=>e.id===own.reportingManagerId);if(!manager)return null;return {id:manager.id,employeeNo:manager.employeeNo,fullName:manager.name,designation:manager.designation||'Staff',department:manager.department||'',avatar:manager.avatar,status:manager.status,personalEmail:manager.email,mobilePhone:''};}
+  static async getLevels():Promise<Record<number,string>>{const levels=await repository().find('reporting_hierarchy_levels',()=>true);return Object.fromEntries(levels.map(row=>[row.depth,row.name]));}
+  static async updateLevel(depth:number,name:string){if(!Number.isSafeInteger(depth)||depth<0||typeof name!=='string'||!name.trim()||name.length>255)throw new Error('Enter a valid level and name.');await repository().transaction(async tx=>{const row=await tx.get('reporting_hierarchy_levels',{depth});if(row)await tx.replace('reporting_hierarchy_levels',{...row,name:name.trim()});else await tx.create('reporting_hierarchy_levels',{depth,name:name.trim()});});}
+}

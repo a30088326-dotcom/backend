@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { requireAuth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { onboardingProfileSchema } from '../../lib/validations';
+import { repository } from '../../storage/repository';
 
 const router = Router();
 
@@ -23,6 +24,19 @@ router.post(
     const candidateId = req.user.userId;
 
     try {
+      if (process.env.DATABASE_PROVIDER === 'dynamodb') {
+        const profile = await repository().transaction(async tx => {
+          const owner = await tx.get('users', { id: candidateId });
+          if (!owner) throw new Error('Candidate not found.');
+          await tx.replace('users', { ...owner, profileRevision: Number(owner.profileRevision || 0) + 1 });
+          const existing = (await tx.find('onboarding_profiles', p => p.candidateId === candidateId))[0];
+          const data = { ...req.body, dateOfBirth: String(req.body.dateOfBirth).slice(0, 10) };
+          return existing ? tx.replace('onboarding_profiles', { ...existing, ...data })
+            : tx.create('onboarding_profiles', { ...data, id: uuidv4(), candidateId });
+        });
+        res.status(201).json({ success: true, message: 'Onboarding details saved successfully', data: profile });
+        return;
+      }
       const [rows] = await db.query<RowDataPacket[]>('SELECT id FROM onboarding_profiles WHERE candidateId = ? LIMIT 1', [candidateId]);
       const existing = rows[0];
 
@@ -80,6 +94,10 @@ router.get(
     }
 
     try {
+      if (process.env.DATABASE_PROVIDER === 'dynamodb') {
+        const profile = (await repository().find('onboarding_profiles', p => p.candidateId === req.user!.userId))[0] || null;
+        res.json({ success: true, data: profile }); return;
+      }
       const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM onboarding_profiles WHERE candidateId = ? LIMIT 1', [req.user.userId]);
       const profile = rows[0] || null;
 
@@ -113,6 +131,12 @@ router.get(
     }
 
     try {
+      if (process.env.DATABASE_PROVIDER === 'dynamodb') {
+        const profile = (await repository().find('onboarding_profiles', p => p.candidateId === candidateId))[0];
+        if (!profile) { res.status(404).json({ success: false, message: 'Onboarding profile not found' }); return; }
+        const candidate = await repository().get('users', { id: candidateId });
+        res.json({ success: true, data: { ...profile, candidate: candidate ? { id: candidate.id, name: candidate.name, email: candidate.email, role: candidate.role } : null } }); return;
+      }
       const query = `
         SELECT op.*, c.id as c_id, c.name as c_name, c.email as c_email, c.role as c_role
         FROM onboarding_profiles op

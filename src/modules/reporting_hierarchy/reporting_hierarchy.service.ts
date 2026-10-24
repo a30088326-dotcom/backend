@@ -2,12 +2,14 @@
 import { db } from '../../lib/db';
 import { RowDataPacket } from 'mysql2';
 import { changeReporting } from '../../shared/services/organization.service';
+import { NativeReportingHierarchyService as native } from './reporting_hierarchy.dynamo';
 
 export class ReportingHierarchyService {
   /**
    * Fetch active employees for manager selection dropdown.
    */
   static async getActiveEmployees(search?: string, excludeId?: string) {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getActiveEmployees(search,excludeId);
     let query = `
       SELECT 
         e.id, 
@@ -77,6 +79,7 @@ params.push(...Array(9).fill(searchParam));
    * Otherwise returns direct subordinates of parentId.
    */
   static async getTreeNodes(parentId?: string) {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getTreeNodes(parentId);
     let query = this.getNodeSelectSql();
     const params: any[] = [];
 
@@ -103,6 +106,7 @@ params.push(...Array(9).fill(searchParam));
    * Fetch the full hierarchy (all active employees) for client-side assembly.
    */
   static async getFullHierarchy() {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getFullHierarchy();
     const query = this.getNodeSelectSql() + ` ORDER BY name ASC`;
     const [rows] = await db.query<RowDataPacket[]>(query);
     return rows;
@@ -112,6 +116,7 @@ params.push(...Array(9).fill(searchParam));
    * Assign or change a reporting manager for an employee.
    */
   static async assignManager(employeeId: string, reportingManagerId: string | null, effectiveDate: string, reason: string, changedBy: string) {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.assignManager(employeeId,reportingManagerId,effectiveDate,reason,changedBy);
     const connection = await db.getConnection();
     try {
       await connection.beginTransaction();
@@ -126,6 +131,7 @@ params.push(...Array(9).fill(searchParam));
    * Fetch audit history of reporting hierarchy changes
    */
   static async getAuditHistory() {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getAuditHistory();
     const query = `
       SELECT 
         a.id, a.employee_id, a.action, a.previous_manager_id, a.new_manager_id, a.effective_date, a.reason, a.changed_by, a.created_at,
@@ -157,6 +163,7 @@ params.push(...Array(9).fill(searchParam));
    * Get the upward path of an employee to the root.
    */
   static async getUpwardPath(employeeId: string): Promise<string[]> {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getUpwardPath(employeeId);
     const path: string[] = [];
     let currentId: string | null = employeeId;
     
@@ -186,6 +193,7 @@ params.push(...Array(9).fill(searchParam));
    * Get employeeId for a given userId
    */
   static async getMyEmployeeId(userId: string): Promise<string | null> {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getMyEmployeeId(userId);
     const [rows] = await db.query('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId]);
     return rows[0]?.id || null;
   }
@@ -195,6 +203,7 @@ params.push(...Array(9).fill(searchParam));
    * Excludes the Owner, who does not require a reporting manager.
    */
   static async getUnassignedEmployees() {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getUnassignedEmployees();
     const query = `
       SELECT 
         e.id, 
@@ -221,6 +230,7 @@ AND e.organizationalRank != 'OWNER'
    * Validates every change before committing any of them.
    */
   static async bulkUpdateManagers(changes: Array<{employeeId:string;newReportingManagerId:string|null}>, changedBy:string, effectiveDate:string) {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.bulkUpdateManagers(changes,changedBy,effectiveDate);
     const connection = await db.getConnection();
     try {
       await connection.beginTransaction();
@@ -235,6 +245,7 @@ AND e.organizationalRank != 'OWNER'
    * Get the reporting manager details for the currently logged in user
    */
   static async getMyManager(userId: string): Promise<any> {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getMyManager(userId);
     // Step 1: Get the employee for this user
     const [empRows] = await db.query(
       'SELECT id, reportingManagerId FROM employee_information_employees WHERE userId = ? LIMIT 1',
@@ -289,6 +300,7 @@ AND e.organizationalRank != 'OWNER'
    * Get all custom level names
    */
   static async getLevels(): Promise<Record<number, string>> {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.getLevels();
     await this.ensureLevelsTable();
     const [rows] = await db.query('SELECT depth, name FROM reporting_hierarchy_levels');
     const levelMap: Record<number, string> = {};
@@ -302,6 +314,7 @@ AND e.organizationalRank != 'OWNER'
    * Update or insert a custom level name
    */
   static async updateLevel(depth: number, name: string): Promise<void> {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return native.updateLevel(depth,name);
     await this.ensureLevelsTable();
     await db.query(
       `INSERT INTO reporting_hierarchy_levels (depth, name) 

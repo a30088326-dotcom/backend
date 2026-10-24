@@ -36,6 +36,7 @@ router.get('/scripts/:id', async (req, res) => {
 router.post('/scripts', async (req, res) => {
   try {
     const { name, description, content, isDefault } = req.body;
+    LeaveRulesEvaluator.validateCustomScript(content);
     const newId = uuidv4();
     await db.query(
       'INSERT INTO leave_rule_scripts (id, name, description, content, isDefault, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
@@ -52,6 +53,7 @@ router.post('/scripts', async (req, res) => {
 router.put('/scripts/:id', async (req, res) => {
   try {
     const { name, description, content, isDefault } = req.body;
+    LeaveRulesEvaluator.validateCustomScript(content);
     await db.query(
       'UPDATE leave_rule_scripts SET name = ?, description = ?, content = ?, isDefault = ?, updatedAt = NOW() WHERE id = ?',
       [name, description, content, isDefault ? 1 : 0, req.params.id]

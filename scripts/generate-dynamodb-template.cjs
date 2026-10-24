@@ -21,6 +21,11 @@ const tables = definitions.map(([, name, body]) => {
   return { name, partitionKey: keys[0], ...(keys[1] ? { sortKey: keys[1] } : {}) };
 });
 assert.deepEqual(tables.map(table => table.name).sort(), [...manifest.tables].sort());
+manifest.foreignKeys = definitions.flatMap(([, tableName, body]) =>
+  [...body.matchAll(/CONSTRAINT `([^`]+)` FOREIGN KEY \(`([^`]+)`\) REFERENCES `([^`]+)` \(`([^`]+)`\)/g)]
+    .map(([, constraintName, columnName, referencedTable, referencedColumn]) => ({ tableName, columnName, constraintName, referencedTable, referencedColumn }))
+).sort((a, b) => a.tableName.localeCompare(b.tableName) || a.columnName.localeCompare(b.columnName));
+fs.writeFileSync(path.join(root, 'database/schema-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 const entitySchemas = Object.fromEntries(definitions.map(([, name, body]) => {
   const columns = [...body.matchAll(/^\s*`([^`]+)`\s+([^\n]+)/gm)].map(([, column, definition]) => {
     const match = definition.match(/\bDEFAULT\s+('(\\.|[^'])*'|NULL|CURRENT_TIMESTAMP(?:\(\d+\))?|[-\d.]+)/i);

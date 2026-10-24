@@ -9,8 +9,10 @@ import { validate } from '../../middleware/validate';
 import { createInviteSchema } from '../../lib/validations';
 import { sendEmail } from '../../lib/email';
 import { requireModuleAction, organizationModuleScope } from '../../middleware/module-action';
+import nativeRoutes from './invites.dynamo';
 
 const router = Router();
+router.use((req, res, next) => process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRoutes(req, res, next) : next());
 const htmlText = (value:string) => value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 
 // ─── Helper: generate secure token ───────────────────────────────────────────

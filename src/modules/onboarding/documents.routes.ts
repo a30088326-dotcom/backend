@@ -10,11 +10,13 @@ import { verifyDocumentSchema } from '../../lib/validations';
 import { sendEmail } from '../../lib/email';
 import { requireModuleAction, canManageCandidate } from '../../middleware/module-action';
 import { portableFileUrl } from './files.routes';
+import nativeRoutes from './documents.dynamo';
 
 type DocumentType = 'NATIONAL_ID' | 'BANK_STATEMENT' | 'PASSPORT_PHOTO' | 'EMPLOYMENT_DOCS' | 'PREVIOUS_SERVICE' | 'OTHER';
 const MAX_DOCUMENTS_PER_TYPE = 4;
 
 const router = Router();
+router.use((req, res, next) => process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRoutes(req, res, next) : next());
 
 import fs from 'fs';
 import path from 'path';

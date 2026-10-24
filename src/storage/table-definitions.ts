@@ -713,6 +713,24 @@ export const tableDefinitions = {
       "name": "id",
       "type": "S"
     }
+  },
+  "hr_assistant_collections": {
+    "partitionKey": {
+      "name": "id",
+      "type": "S"
+    }
+  },
+  "hr_assistant_collection_rows": {
+    "partitionKey": {
+      "name": "id",
+      "type": "S"
+    }
+  },
+  "employee_information_employment_type_transitions": {
+    "partitionKey": {
+      "name": "id",
+      "type": "S"
+    }
   }
 } as const;
 export type EntityName = keyof typeof tableDefinitions;

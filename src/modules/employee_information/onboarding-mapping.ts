@@ -1,4 +1,6 @@
 import { db } from '../../lib/db';
+import { repository } from '../../storage/repository';
+import type { EntityName } from '../../storage/table-definitions';
 
 // Fill missing onboarding contact fields without overwriting HR-maintained data.
 export function onboardingContact(current: any, profile: any, email = '') {
@@ -33,7 +35,7 @@ export function onboardingContact(current: any, profile: any, email = '') {
 export async function populateDetailLabels(personal: any, workstation: any) {
   for (const [field, table] of [['gender', 'eim_genders'], ['nationality', 'eim_nationalities']]) {
     if (personal && /^[0-9a-f-]{36}$/i.test(personal[field] || '')) {
-      const [[lookup]] = await db.query<any[]>('SELECT name FROM ?? WHERE id=?', [table, personal[field]]);
+      const lookup = process.env.DATABASE_PROVIDER === 'dynamodb' ? await repository().get(table as EntityName,{id:personal[field]}) : (await db.query<any[]>('SELECT name FROM ?? WHERE id=?', [table, personal[field]]))[0][0];
       if (lookup) personal[field] = lookup.name;
     }
   }
@@ -43,7 +45,7 @@ export async function populateDetailLabels(personal: any, workstation: any) {
     ['departmentId', 'eim_structures', 'departmentName'], ['designationId', 'designations', 'designationName'],
   ]) {
     if (!workstation[field]) continue;
-    const [[lookup]] = await db.query<any[]>('SELECT name FROM ?? WHERE id=?', [table, workstation[field]]);
+    const lookup = process.env.DATABASE_PROVIDER === 'dynamodb' ? await repository().get(table as EntityName,{id:workstation[field]}) : (await db.query<any[]>('SELECT name FROM ?? WHERE id=?', [table, workstation[field]]))[0][0];
     workstation[label] = lookup?.name || null;
   }
 }

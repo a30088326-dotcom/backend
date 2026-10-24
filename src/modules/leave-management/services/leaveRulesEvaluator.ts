@@ -1,5 +1,7 @@
 import { db } from '../../../lib/db';
 import { RowDataPacket } from 'mysql2';
+import { repository, type RepositorySession } from '../../../storage/repository';
+import { compileLeaveRule, evaluateLeaveRule } from './restricted-rule';
 
 export interface LeaveRuleInput {
   employeeId: string;
@@ -15,86 +17,48 @@ export interface LeaveRuleOutput {
 }
 
 export class LeaveRulesEvaluator {
+  static validateCustomScript(script: string) { compileLeaveRule(script); }
   /**
    * Safely evaluate a custom script
    */
   static evaluateCustomScript(script: string, context: Record<string, any>): LeaveRuleOutput {
-    const logs: string[] = [];
-    
-    // Create a safe context mapping
-    const sandboxContext = {
-      ...context,
-      console: {
-        log: (...args: any[]) => logs.push(args.join(' ')),
-      },
-      Math: Math,
-      Date: Date,
-      parseFloat,
-      parseInt,
-      isNaN
-    };
-
-    const keys = Object.keys(sandboxContext);
-    const values = Object.values(sandboxContext);
-
-    try {
-      const fn = new Function(...keys, `
-        let output = { entitlement: 0, carryForwardAmount: 0 };
-        try {
-          ${script}
-        } catch(e) {
-          console.log("Script Execution Error:", e.message);
-        }
-        return output;
-      `);
-
-      const result = fn(...values);
-      return {
-        entitlement: result?.entitlement || 0,
-        carryForwardAmount: result?.carryForwardAmount || 0,
-        logs
-      };
-    } catch (err: any) {
-      logs.push(`Compilation Error: ${err.message}`);
-      return { entitlement: 0, carryForwardAmount: 0, logs };
-    }
+    return evaluateLeaveRule(script, context);
   }
 
   /**
    * Evaluates standard Sri Lankan Leave rules or custom scripts
    */
-  static async evaluate(input: LeaveRuleInput, scriptContent?: string): Promise<LeaveRuleOutput> {
+  static async evaluate(input: LeaveRuleInput, scriptContent?: string, session?: RepositorySession): Promise<LeaveRuleOutput> {
     const logs: string[] = [];
     logs.push(`Starting evaluation for Employee: ${input.employeeId}, Year: ${input.leaveYear}`);
 
-    const [empRows] = await db.query<RowDataPacket[]>('SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1', [input.employeeId]);
-    const employee = empRows[0];
+    const native = process.env.DATABASE_PROVIDER === 'dynamodb';
+    const store = session || (native ? repository() : undefined);
+    const employee = store ? await store.get('employee_information_employees', { id: input.employeeId }) : (await db.query<RowDataPacket[]>('SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1', [input.employeeId]))[0][0];
     if (!employee) throw new Error('Employee not found');
 
-    const [pdRows] = await db.query<RowDataPacket[]>('SELECT gender FROM employee_information_personal_details WHERE employeeId = ? LIMIT 1', [input.employeeId]);
+    const pdRows = store ? await store.find('employee_information_personal_details', p => p.employeeId === input.employeeId) : (await db.query<RowDataPacket[]>('SELECT gender FROM employee_information_personal_details WHERE employeeId = ? LIMIT 1', [input.employeeId]))[0];
     let gender = pdRows[0]?.gender?.toUpperCase();
     // Onboarding historically stores lookup IDs; older employees store names.
     if (gender && /^[0-9A-F-]{36}$/.test(gender)) {
-      const [genders] = await db.query<RowDataPacket[]>('SELECT name FROM eim_genders WHERE id=? LIMIT 1', [pdRows[0].gender]);
+      const genders = store ? [await store.get('eim_genders', { id: pdRows[0].gender })].filter(Boolean) : (await db.query<RowDataPacket[]>('SELECT name FROM eim_genders WHERE id=? LIMIT 1', [pdRows[0].gender]))[0];
       gender = genders[0]?.name?.toUpperCase();
     }
 
-    const [edRows] = await db.query<RowDataPacket[]>('SELECT dateJoined, probationStatus FROM employee_information_employees WHERE id = ? LIMIT 1', [input.employeeId]);
-    const empDetails = edRows[0];
+    const empDetails = employee;
 
-    const joinedDate = empDetails?.dateJoined ? new Date(empDetails.dateJoined) : null;
-    if (!joinedDate) {
+    const joinedDate = empDetails?.dateJoined ? new Date(String(empDetails.dateJoined).slice(0, 10) + 'T00:00:00Z') : null;
+    if (!joinedDate || Number.isNaN(joinedDate.valueOf())) {
       logs.push("Error: No dateJoined found for employee in employment details");
       return { entitlement: 0, carryForwardAmount: 0, logs };
     }
 
     const currentYear = input.leaveYear;
-    const joinedYear = joinedDate.getFullYear();
-    const joinedMonth = joinedDate.getMonth() + 1; // 1-12
+    const joinedYear = joinedDate.getUTCFullYear();
+    const joinedMonth = joinedDate.getUTCMonth() + 1; // 1-12
     const serviceMonths = (currentYear - joinedYear) * 12 + (12 - joinedMonth + 1);
 
-    const [ltRows] = await db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id = ? LIMIT 1', [input.leaveTypeId]);
-    const leaveType = ltRows[0];
+    const leaveType = store ? await store.get('leave_types', { id: input.leaveTypeId }) : (await db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id = ? LIMIT 1', [input.leaveTypeId]))[0][0];
     if (!leaveType) throw new Error('Leave Type not found');
 
     const isMale = gender === 'MALE';

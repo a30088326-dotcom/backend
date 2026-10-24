@@ -6,9 +6,12 @@ import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { db } from '../../lib/db';
 import { requireAuth } from '../../middleware/auth';
 import { syncEmployeeMappings } from '../../shared/services/employee-mapping.service';
+import { repository } from '../../storage/repository';
+import nativeRoutes from './profile-requests.native';
 
 // Additive storage: employment, payroll, leave rules and existing history are not changed.
 export async function ensureProfileRequestStorage() {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return;
   await db.query(`CREATE TABLE IF NOT EXISTS employee_profile_extras (
     employeeId varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL PRIMARY KEY,
     data json NOT NULL, updatedAt datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -18,6 +21,7 @@ export async function ensureProfileRequestStorage() {
 const parse = (value: any, fallback: any = {}) => typeof value === 'string' ? JSON.parse(value) : value || fallback;
 export function identifiedContacts(contacts:any[] = []) {return contacts.map(v=>({...v,id:v.id||`legacy-${createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0,24)}`}));}
 export async function getProfileExtras(employeeId: string) {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return parse((await repository().get('employee_profile_extras', { employeeId }))?.data);
   const [rows] = await db.query<RowDataPacket[]>('SELECT data FROM employee_profile_extras WHERE employeeId=?', [employeeId]);
   return parse(rows[0]?.data);
 }
@@ -38,9 +42,10 @@ export const profileSchemas = {
 };
 type Section = keyof typeof profileSchemas;
 class RequestError extends Error { constructor(public status:number,message:string){super(message);} }
-const requestSchema = z.object({section:z.enum(Object.keys(profileSchemas) as [Section,...Section[]]),operation:z.enum(['update','add','remove']),itemId:z.string().optional(),values:z.record(z.unknown()),reason:z.string().trim().min(1).max(2000)}).strict();
+const requestSchema = z.object({section:z.enum(Object.keys(profileSchemas) as [Section,...Section[]]),operation:z.enum(['update','add','remove']),itemId:z.string().optional(),values:z.record(z.string(), z.unknown()),reason:z.string().trim().min(1).max(2000)}).strict();
 const router = Router(); router.use(requireAuth);
-const run = (fn:any) => async (req:any,res:any)=>{try{await fn(req,res);}catch(e:any){if(!(e instanceof RequestError)&&!(e instanceof z.ZodError))console.error('Profile request error:',e);res.status(e.status|| (e instanceof z.ZodError?400:500)).json({success:false,message:e instanceof z.ZodError?e.errors.map((x:any)=>x.message).join(' '):e.status?e.message:'Unable to process the profile request.'});}};
+router.use((req,res,next)=>process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRoutes(req,res,next) : next());
+const run = (fn:any) => async (req:any,res:any)=>{try{await fn(req,res);}catch(e:any){if(!(e instanceof RequestError)&&!(e instanceof z.ZodError))console.error('Profile request error:',e);res.status(e.status|| (e instanceof z.ZodError?400:500)).json({success:false,message:e instanceof z.ZodError?e.issues.map((x:any)=>x.message).join(' '):e.status?e.message:'Unable to process the profile request.'});}};
 async function own(userId:string,c:any=db) {
   const [rows]=await c.query('SELECT * FROM employee_information_employees WHERE userId=? AND isActive=1',[userId]);
   if(!rows[0])throw new RequestError(404,'An active employee profile is required.');return rows[0];

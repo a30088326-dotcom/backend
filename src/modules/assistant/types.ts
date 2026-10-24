@@ -22,7 +22,7 @@ export interface Result {
 export interface Prepared { args: Record<string, any>; summary: string; before?: unknown; }
 export interface Tool {
   id: string; label: string; module: string; description: string; scope: Scope; permission: Permission;
-  risk: 'read' | 'write' | 'high'; examples: string[]; fields: Field[]; schema: z.ZodTypeAny;
+  risk: 'read' | 'write' | 'high'; examples: string[]; fields: Field[]; schema: z.ZodType<any>;
   service: string;
   prepare?: (ctx: Context, input: any) => Promise<Prepared>;
   execute: (ctx: Context, input: any) => Promise<Result>;

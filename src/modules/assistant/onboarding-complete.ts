@@ -1,3 +1,5 @@
+import { useDynamo } from './native-data';
+import * as native from './onboarding-complete.dynamo';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
@@ -30,6 +32,7 @@ export const completeOnboardingTool:Tool={
   fields:[{name:'email',label:'Candidate email',required:true},{name:'joinDate',label:'Join date',type:'date',required:true},...Object.keys(masters).map(name=>({name,label:`Exact ${name} name or ID`,required:true})),{name:'manager',label:'Reporting manager name or employee number',required:true}],
   schema:z.object({email:z.string().trim().email(),joinDate:dateSchema,company:text,location:text,department:text,designation:text,employmentType:text,roster:text,manager:text}).strict(),
   prepare:async(c,v)=>{
+    if(useDynamo())return native.prepare(c,v);
     const candidate=await readyCandidate(c,v.email),manager=employeeFor(c,v.manager);ensure(manager.organizationalRank!=='EMPLOYEE','Select a reporting manager with a higher organization rank.');
     const mapping:Record<string,string>={},labels:string[]=[];
     for(const [field,table] of Object.entries(masters)) {
@@ -40,6 +43,7 @@ export const completeOnboardingTool:Tool={
     return {args:{email:v.email.toLowerCase(),candidateId:candidate.user.id,joinDate:v.joinDate,mapping,managerId:manager.id},summary:`Activate ${candidate.user.name} (${v.email}) as an Employee from ${v.joinDate}. Reporting manager: ${manager.name}. ${labels.join('; ')}. An employee number will be allocated. Submitted profile/contact/bank details will be copied; login credentials stay unchanged.`,before:JSON.parse(JSON.stringify({profile:candidate.profile,documents:candidate.documents,contract:candidate.contract}))};
   },
   execute:async(c,v)=>{
+    if(useDynamo())return native.execute(c,v);
     const conn=await db.getConnection(),id=randomUUID();let employeeNumber='';
     try {
       await conn.beginTransaction();

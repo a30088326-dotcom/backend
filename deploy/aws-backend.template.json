@@ -1,0 +1,577 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Peoples HR private upload storage and bounded ECS HTTPS API. Service stays disabled until native DynamoDB cutover is verified.",
+  "Parameters": {
+    "AppName": {
+      "Type": "String",
+      "Default": "peoples-management",
+      "AllowedPattern": "[a-z][a-z0-9-]{2,35}"
+    },
+    "TablePrefix": {
+      "Type": "String",
+      "Default": "peoples-management",
+      "AllowedPattern": "[A-Za-z0-9_.-]{1,170}"
+    },
+    "FrontendOrigin": {
+      "Type": "String",
+      "AllowedPattern": "https://[A-Za-z0-9.-]+",
+      "Description": "Exact Amplify production origin, no slash or path."
+    },
+    "ApiImage": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "(^$)|(^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9/_-]+@sha256:[a-f0-9]{64}$)",
+      "Description": "Verified backend ECR image pinned by digest. No mutable latest tag."
+    },
+    "DeploymentReady": {
+      "Type": "String",
+      "AllowedValues": [
+        "NO",
+        "VERIFIED"
+      ],
+      "Default": "NO",
+      "Description": "Keep NO until native repository, SQL removal, import checks, uploads and workflows pass."
+    },
+    "SubnetIds": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "Two or more reviewed public subnets in the same VPC. No NAT gateway is provisioned by this template."
+    }
+  },
+  "Conditions": {
+    "DeployApi": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "DeploymentReady"
+            },
+            "VERIFIED"
+          ]
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "ApiImage"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "UploadsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "AbortIncompleteUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+              }
+            }
+          ]
+        }
+      }
+    },
+    "UploadsBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "UploadsBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "RequireTLS",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "UploadsBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${UploadsBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ApiRepository": {
+      "Type": "AWS::ECR::Repository",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "RepositoryName": {
+          "Fn::Sub": "${AppName}-api"
+        },
+        "ImageTagMutability": "IMMUTABLE",
+        "ImageScanningConfiguration": {
+          "ScanOnPush": true
+        },
+        "EncryptionConfiguration": {
+          "EncryptionType": "AES256"
+        }
+      }
+    },
+    "RuntimeSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Description": "Peoples HR runtime secret. SMTP values must be configured privately before invitation email acceptance checks.",
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"SMTP_USER\":\"\",\"SMTP_PASS\":\"\"}",
+          "GenerateStringKey": "JWT_SECRET",
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        }
+      }
+    },
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": 30
+      }
+    },
+    "Cluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": {
+          "Fn::Sub": "${AppName}-api"
+        }
+      }
+    },
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ApplicationAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchCheckLayerAvailability"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "ApiRepository",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": {
+                    "Ref": "RuntimeSecret"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "InfrastructureRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyName": "ApplicationAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeAccountAttributes"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeServices",
+                    "ecs:UpdateService"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/${AppName}-api/${AppName}-api"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudwatch:DescribeAlarms"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "TaskRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ApplicationAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:DescribeTable",
+                    "dynamodb:GetItem",
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:Scan",
+                    "dynamodb:Query",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:ConditionCheckItem"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-*/index/*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ListBucket"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "UploadsBucket",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "${UploadsBucket.Arn}/uploads/*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ApiService": {
+      "Type": "AWS::ECS::ExpressGatewayService",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "DeployApi",
+      "Properties": {
+        "ServiceName": {
+          "Fn::Sub": "${AppName}-api"
+        },
+        "Cluster": {
+          "Ref": "Cluster"
+        },
+        "InfrastructureRoleArn": {
+          "Fn::GetAtt": [
+            "InfrastructureRole",
+            "Arn"
+          ]
+        },
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "ExecutionRole",
+            "Arn"
+          ]
+        },
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TaskRole",
+            "Arn"
+          ]
+        },
+        "Cpu": "256",
+        "Memory": "512",
+        "HealthCheckPath": "/health",
+        "NetworkConfiguration": {
+          "Subnets": {
+            "Ref": "SubnetIds"
+          }
+        },
+        "ScalingTarget": {
+          "MinTaskCount": 1,
+          "MaxTaskCount": 2,
+          "AutoScalingMetric": "AVERAGE_CPU",
+          "AutoScalingTargetValue": 70
+        },
+        "PrimaryContainer": {
+          "Image": {
+            "Ref": "ApiImage"
+          },
+          "ContainerPort": 3001,
+          "AwsLogsConfiguration": {
+            "LogGroup": {
+              "Ref": "LogGroup"
+            },
+            "LogStreamPrefix": "api"
+          },
+          "Environment": [
+            {
+              "Name": "NODE_ENV",
+              "Value": "production"
+            },
+            {
+              "Name": "PORT",
+              "Value": "3001"
+            },
+            {
+              "Name": "TZ",
+              "Value": "Asia/Colombo"
+            },
+            {
+              "Name": "DEPLOYMENT_REVISION",
+              "Value": {
+                "Ref": "ApiImage"
+              }
+            },
+            {
+              "Name": "DATABASE_PROVIDER",
+              "Value": "dynamodb"
+            },
+            {
+              "Name": "UPLOAD_STORAGE",
+              "Value": "s3"
+            },
+            {
+              "Name": "AWS_REGION",
+              "Value": {
+                "Ref": "AWS::Region"
+              }
+            },
+            {
+              "Name": "DYNAMODB_TABLE_PREFIX",
+              "Value": {
+                "Ref": "TablePrefix"
+              }
+            },
+            {
+              "Name": "UPLOADS_BUCKET",
+              "Value": {
+                "Ref": "UploadsBucket"
+              }
+            },
+            {
+              "Name": "FRONTEND_URL",
+              "Value": {
+                "Ref": "FrontendOrigin"
+              }
+            },
+            {
+              "Name": "EXTERNAL_FRONTEND_URL",
+              "Value": {
+                "Ref": "FrontendOrigin"
+              }
+            },
+            {
+              "Name": "SMTP_HOST",
+              "Value": "smtp.gmail.com"
+            },
+            {
+              "Name": "SMTP_PORT",
+              "Value": "587"
+            },
+            {
+              "Name": "SMTP_SECURE",
+              "Value": "false"
+            }
+          ],
+          "Secrets": [
+            {
+              "Name": "JWT_SECRET",
+              "ValueFrom": {
+                "Fn::Sub": "${RuntimeSecret}:JWT_SECRET::"
+              }
+            },
+            {
+              "Name": "SMTP_USER",
+              "ValueFrom": {
+                "Fn::Sub": "${RuntimeSecret}:SMTP_USER::"
+              }
+            },
+            {
+              "Name": "SMTP_PASS",
+              "ValueFrom": {
+                "Fn::Sub": "${RuntimeSecret}:SMTP_PASS::"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "UploadsBucket": {
+      "Value": {
+        "Ref": "UploadsBucket"
+      }
+    },
+    "RepositoryUri": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ApiRepository",
+          "RepositoryUri"
+        ]
+      }
+    },
+    "RuntimeSecretArn": {
+      "Value": {
+        "Ref": "RuntimeSecret"
+      }
+    },
+    "ApiEndpoint": {
+      "Condition": "DeployApi",
+      "Value": {
+        "Fn::GetAtt": [
+          "ApiService",
+          "Endpoint"
+        ]
+      }
+    },
+    "ApplicationTaskRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "TaskRole",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

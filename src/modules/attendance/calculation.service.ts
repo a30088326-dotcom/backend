@@ -1,4 +1,6 @@
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
+import type { RepositorySession } from '../../storage/repository';
+import { shiftForDateNative, workingDateNative, workingLogsNative, saveAttendanceNative } from './native-services';
 
 const offset = 330 * 60000;
 export const attendanceDateTime = (date: Date) => new Date(date.getTime() + offset).toISOString().slice(0, 19).replace('T', ' ');
@@ -13,7 +15,8 @@ export function attendanceRange(date: string, inTime: string, outTime: string) {
   return { inTime: `${date} ${inTime}:00`, outTime: `${end.toISOString().slice(0, 10)} ${outTime}:00` };
 }
 
-export async function shiftForDate(connection: PoolConnection, employeeId: string, date: string, savedShiftId?: string) {
+export async function shiftForDate(connection: PoolConnection | RepositorySession, employeeId: string, date: string, savedShiftId?: string):Promise<any> {
+  if ('find' in connection) return shiftForDateNative(connection,employeeId,date,savedShiftId);
   if (savedShiftId) {
     const [[saved]] = await connection.query<RowDataPacket[]>('SELECT * FROM attendance_shifts WHERE id=?', [savedShiftId]);
     if (saved) return saved;
@@ -35,7 +38,8 @@ export async function shiftForDate(connection: PoolConnection, employeeId: strin
 }
 
 type Log = { timestamp: Date | string; logType: string };
-export async function workingDate(connection: Pick<PoolConnection,'query'>, employeeId:string, now=new Date()) {
+export async function workingDate(connection: Pick<PoolConnection,'query'> | RepositorySession, employeeId:string, now=new Date()):Promise<string> {
+  if ('find' in connection) return workingDateNative(connection,employeeId,now);
   const [[last]]=await connection.query<RowDataPacket[]>('SELECT timestamp,logType FROM attendance_raw_logs WHERE employeeId=? AND timestamp>=? AND timestamp<=? ORDER BY timestamp DESC LIMIT 1',[employeeId,attendanceDateTime(new Date(now.getTime()-36*3600000)),attendanceDateTime(now)]);
   if(last && last.logType!=='Out') {
     const [[opened]]=await connection.query<RowDataPacket[]>("SELECT timestamp FROM attendance_raw_logs WHERE employeeId=? AND logType='In' AND timestamp<=? ORDER BY timestamp DESC LIMIT 1",[employeeId,attendanceDateTime(now)]);
@@ -43,7 +47,8 @@ export async function workingDate(connection: Pick<PoolConnection,'query'>, empl
   }
   return attendanceDate(now);
 }
-export async function workingLogs(connection: Pick<PoolConnection,'query'>,employeeId:string,date:string,now=new Date()) {
+export async function workingLogs(connection: Pick<PoolConnection,'query'> | RepositorySession,employeeId:string,date:string,now=new Date()):Promise<any[]> {
+  if ('find' in connection) return workingLogsNative(connection,employeeId,date,now);
   const [logs]=await connection.query<RowDataPacket[]>('SELECT id,timestamp,logType,source FROM attendance_raw_logs WHERE employeeId=? AND timestamp>=? AND timestamp<=? ORDER BY timestamp ASC,id ASC',[employeeId,date+' 00:00:00',attendanceDateTime(now)]);
   return logs;
 }
@@ -80,8 +85,9 @@ export function calculateAttendance(date: string, firstIn: Date | string, lastOu
   return {shiftId:shift?.id||null,totalHours:round(hours),regularHours:round(shift && standard>0?Math.min(hours,standard):hours),overtimeHours:round(overtime),lateMinutes,earlyDepartureMinutes,isLate:lateMinutes>0?1:0};
 }
 
-export async function saveAttendance(connection: PoolConnection, recordId: string, employeeId: string, date: string,
+export async function saveAttendance(connection: PoolConnection | RepositorySession, recordId: string, employeeId: string, date: string,
   firstIn: Date | string, lastOut: Date | string, options: {logs?:Log[];savedShiftId?:string;status?:string;isException?:number}={}) {
+  if ('find' in connection) return saveAttendanceNative(connection,recordId,employeeId,date,firstIn,lastOut,options);
   const shift=await shiftForDate(connection,employeeId,date,options.savedShiftId);
   const result=calculateAttendance(date,firstIn,lastOut,shift,options.logs);
   await connection.query(`UPDATE attendance_records SET shiftId=?,inTime=?,outTime=?,totalHours=?,regularHours=?,overtimeHours=?,

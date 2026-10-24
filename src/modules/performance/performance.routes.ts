@@ -1,15 +1,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { db } from '../../lib/db';
 import { requireAuth } from '../../middleware/auth';
 import { ensurePerformanceSchema } from './schema';
-import { actorFor } from './store';
+import { actorFor, readNotification } from './store';
 import { idSchema, PerformanceError } from './rules';
 import * as setup from './setup.service';
 import { changeReview } from './review.service';
 import { reviewDetails, workspace } from './query.service';
 import { historicalPerformance } from './history.service';
 import type { Actor } from './types';
+import { StorageConflictError } from '../../storage/dynamodb';
 
 const router = Router();
 router.use(requireAuth);
@@ -21,6 +21,7 @@ const route = (handler: (actor: Actor, req: Request) => Promise<unknown>) => asy
   } catch (error) {
     if (error instanceof ZodError) { res.status(400).json({ success: false, message: error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ') }); return; }
     if (error instanceof PerformanceError) { res.status(error.status).json({ success: false, message: error.message }); return; }
+    if (error instanceof StorageConflictError) { res.status(409).json({ success:false,message:error.message }); return; }
     next(error);
   }
 };
@@ -41,7 +42,7 @@ router.put('/library/:id', route((actor, req) => setup.saveLibraryGoal(actor, re
 router.delete('/library/:id', route((actor, req) => setup.deleteLibraryGoal(actor, id(req))));
 router.post('/assign-goals', route((actor, req) => setup.assignGoals(actor, req.body)));
 router.post('/notifications/:id/read', route(async (actor, req) => {
-  await db.query('UPDATE hr_performance_notifications SET read_at = NOW(3) WHERE id = ? AND user_id = ?', [id(req), actor.userId]);
+  await readNotification(id(req), actor.userId);
   return { read: true };
 }));
 export default router;

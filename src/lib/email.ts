@@ -8,6 +8,8 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 5000,
   greetingTimeout: 5000,
   socketTimeout: 8000,
+  disableFileAccess: true,
+  disableUrlAccess: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -39,7 +41,7 @@ export const sendEmail = async (options: SendEmailOptions): Promise<{ sent: bool
     return info.accepted?.length ? { sent:true } : { sent:false, reason:'The mail server did not accept the recipient.' };
   } catch (error) {
     const smtpError = error as { code?: string; responseCode?: number };
-    console.error('❌ Error sending email:', error);
+    console.error('❌ Email delivery failed:', { code: smtpError.code, responseCode: smtpError.responseCode });
     if (smtpError.code === 'EAUTH' || smtpError.responseCode === 535) {
       return {
         sent: false,

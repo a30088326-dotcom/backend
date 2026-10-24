@@ -3,8 +3,10 @@ import { Request, Response } from 'express';
 import { db } from '../../lib/db';
 import { RowDataPacket } from 'mysql2';
 import { v4 as uuidv4 } from 'uuid';
+import * as native from './access_control.dynamo';
 
 export const getUsers = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.getUsers(req,res);
   try {
     const [rows] = await db.query<RowDataPacket[]>(`
       SELECT
@@ -42,6 +44,7 @@ export const getUsers = async (req: Request, res: Response) => {
 };
 
 export const updateUserRole = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.updateUserRole(req,res);
   const { id } = req.params;
   const { role } = req.body;
   try {
@@ -66,6 +69,7 @@ export const updateUserRole = async (req: Request, res: Response) => {
 };
 
 export const getUserPermissions = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.getUserPermissions(req,res);
   const { id } = req.params;
   try {
     const [rows] = await db.query<RowDataPacket[]>(
@@ -88,6 +92,7 @@ export const getUserPermissions = async (req: Request, res: Response) => {
 };
 
 export const updateUserPermissions = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.updateUserPermissions(req,res);
   const { id } = req.params;
   const { permissions } = req.body;
   try {
@@ -158,6 +163,7 @@ export const updateUserPermissions = async (req: Request, res: Response) => {
 };
 
 export const updateUserStatus = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.updateUserStatus(req,res);
   const { id } = req.params;
   const { isActive } = req.body;
   try {

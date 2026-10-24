@@ -9,6 +9,7 @@ import { ensurePerformanceSchema } from '../performance/schema';
 export interface AssistantUpdate { id: string; message: string; path: string; at: string; pending: boolean; recordId?: string; kind?: string; }
 let ready: Promise<unknown> | undefined;
 export function ensureNotifications() {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return Promise.resolve();
   return ready ||= db.query(`CREATE TABLE IF NOT EXISTS hr_assistant_read_updates (
     user_id VARCHAR(191) NOT NULL, event_id CHAR(64) NOT NULL, read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(user_id,event_id))`).catch(e => { ready = undefined; throw e; });
@@ -17,6 +18,7 @@ export function ensureNotifications() {
  * Only the recipient's currently authorized records are returned. No email, files
  * or private document contents are copied into the notification store. */
 export async function updates(c: Context): Promise<AssistantUpdate[]> {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return (await import('./notifications.dynamo')).updates(c);
   await ensureNotifications();
   const items: AssistantUpdate[] = [];
   const add = (kind: string, r: any, message: string, path: string) => items.push({
