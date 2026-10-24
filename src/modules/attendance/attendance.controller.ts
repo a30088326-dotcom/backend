@@ -6,6 +6,7 @@ import { organizationAccess } from '../../shared/services/organization.service';
 import { monthlyAttendance } from './attendance-scope.service';
 import { dashboardFor, localToday } from '../../shared/services/dashboard.service';
 import { assignRoster, rosterDefault, RosterError, validRosterDate, validateRosterShifts } from './roster.service';
+import { attendanceDateTime, attendanceRange, saveAttendance, shiftForDate, workingDate, workingLogs } from './calculation.service';
 
 // ==========================================
 // SHIFT MANAGEMENT
@@ -552,11 +553,8 @@ export const getMyTodayAttendance = async (req: Request, res: Response) => {
     const [empRows] = await db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId]);
     if (empRows.length === 0) return res.status(404).json({ success: false, message: 'Employee profile not found' });
     const employeeId = empRows[0].id;
-    const todayStr = localToday();
-    const [logs] = await db.query<RowDataPacket[]>(
-      'SELECT id, timestamp, logType, source FROM attendance_raw_logs WHERE employeeId = ? AND DATE(timestamp) = ? ORDER BY timestamp ASC',
-      [employeeId, todayStr]
-    );
+    const todayStr = await workingDate(db,employeeId);
+    const logs = await workingLogs(db,employeeId,todayStr);
     return res.json({ success: true, data: logs });
   } catch (error: any) {
     console.error('Error fetching my today attendance:', error);
@@ -579,12 +577,9 @@ export const punchAttendance = async (req: Request, res: Response) => {
     if (empRows.length === 0) return res.status(404).json({ success: false, message: 'Employee profile not found' });
     const employeeId = empRows[0].id;
     const now = new Date();
-    const todayStr = localToday();
-    
-    const [lastLog] = await connection.query<RowDataPacket[]>(
-      'SELECT logType, timestamp FROM attendance_raw_logs WHERE employeeId = ? AND DATE(timestamp) = ? ORDER BY timestamp DESC LIMIT 1',
-      [employeeId, todayStr]
-    );
+    const todayStr = await workingDate(connection,employeeId,now);
+    const priorLogs = await workingLogs(connection,employeeId,todayStr,now);
+    const lastLog = priorLogs.slice(-1);
     if (lastLog.length > 0 && lastLog[0].logType === logType) {
       return res.status(400).json({ success: false, message: `You are already Clocked ${logType}` });
     }
@@ -602,7 +597,7 @@ export const punchAttendance = async (req: Request, res: Response) => {
     const logId = uuidv4();
     await connection.query(
       'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, location, createdAt) VALUES (?, ?, ?, ?, ?, ?, NOW())',
-      [logId, employeeId, now, logType, source || 'Web', location || null]
+      [logId, employeeId, attendanceDateTime(now), logType, source || 'Web', location || null]
     );
 
     // Update attendance_records
@@ -610,19 +605,18 @@ export const punchAttendance = async (req: Request, res: Response) => {
     
     if (logType === 'In' || logType === 'BreakOut') {
        if (existingRecord.length === 0) {
-         await connection.query('INSERT INTO attendance_records (id, employeeId, date, inTime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())', 
-         [uuidv4(), employeeId, todayStr, now, 'Present']);
+         const shift=await shiftForDate(connection,employeeId,todayStr);
+         await connection.query('INSERT INTO attendance_records (id, employeeId, date, shiftId, inTime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+         [uuidv4(), employeeId, todayStr, shift?.id||null, attendanceDateTime(now), 'Present']);
        } else if (!existingRecord[0].inTime) {
-         await connection.query('UPDATE attendance_records SET inTime = ?, status = \'Present\', updatedAt = NOW() WHERE id = ?', [now, existingRecord[0].id]);
+         await connection.query('UPDATE attendance_records SET inTime = ?, status = \'Present\', updatedAt = NOW() WHERE id = ?', [attendanceDateTime(now), existingRecord[0].id]);
+       } else if(logType==='In') {
+         await connection.query('UPDATE attendance_records SET outTime=NULL,updatedAt=NOW() WHERE id=?',[existingRecord[0].id]);
        }
-    } else if (logType === 'Out' || logType === 'BreakIn') {
+    } else if (logType === 'Out') {
        if (existingRecord.length > 0 && existingRecord[0].inTime) {
-         const inTs = new Date(existingRecord[0].inTime).getTime();
-         const outTs = now.getTime();
-         let totalHours = parseFloat(((outTs - inTs) / 3600000).toFixed(2));
-         if (totalHours < 0) totalHours = 0;
-         await connection.query('UPDATE attendance_records SET outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, updatedAt = NOW() WHERE id = ?', 
-         [now, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), existingRecord[0].id]);
+         await saveAttendance(connection,existingRecord[0].id,employeeId,todayStr,existingRecord[0].inTime,now,
+           {logs:[...priorLogs,{timestamp:now,logType:'Out'}] as any,savedShiftId:existingRecord[0].shiftId});
        }
     }
 
@@ -650,53 +644,54 @@ export const getMyAttendanceHistory = async (req: Request, res: Response) => {
 };
 
 export const createManualAttendance = async (req: Request, res: Response) => {
+  const connection=await db.getConnection();
   try {
     const userId = (req as any).user?.userId;
     if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const { date, inTime, outTime } = req.body;
     if (!date || !inTime || !outTime) return res.status(400).json({ success: false, message: 'date, inTime and outTime are required' });
-    const [empRows] = await db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId]);
+    let range;try{range=attendanceRange(date,inTime,outTime);}catch{return res.status(400).json({success:false,message:'A valid date and different in/out times are required.'});}
+    await connection.beginTransaction();
+    const [empRows] = await connection.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1 FOR UPDATE', [userId]);
     if (empRows.length === 0) return res.status(404).json({ success: false, message: 'Employee profile not found' });
     const employeeId = empRows[0].id;
-    const [existing] = await db.query<RowDataPacket[]>('SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1', [employeeId, date]);
+    const [existing] = await connection.query<RowDataPacket[]>('SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1', [employeeId, date]);
     if (existing.length > 0) return res.status(400).json({ success: false, message: 'Attendance already exists for this date' });
-    const inDateTime = `${date} ${inTime}:00`;
-    const outDateTime = `${date} ${outTime}:00`;
-    const totalHours = parseFloat(((new Date(`${date}T${outTime}`).getTime() - new Date(`${date}T${inTime}`).getTime()) / 3600000).toFixed(2));
-    await db.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), employeeId, inDateTime, 'In', 'Manual']);
-    await db.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), employeeId, outDateTime, 'Out', 'Manual']);
-    await db.query('INSERT INTO attendance_records (id, employeeId, date, inTime, outTime, totalHours, regularHours, overtimeHours, lateMinutes, earlyDepartureMinutes, isLate, status, isException, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())', [uuidv4(), employeeId, date, inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 0, 0, 0, 'Present', 0]);
+    const recordId=uuidv4();
+    await connection.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW()), (?, ?, ?, ?, ?, NOW())', [uuidv4(),employeeId,range.inTime,'In','Manual',uuidv4(),employeeId,range.outTime,'Out','Manual']);
+    await connection.query('INSERT INTO attendance_records (id,employeeId,date) VALUES (?,?,?)',[recordId,employeeId,date]);
+    await saveAttendance(connection,recordId,employeeId,date,range.inTime,range.outTime);
+    await connection.commit();
     return res.status(201).json({ success: true, message: 'Attendance marked successfully' });
   } catch (error: any) {
     console.error('Error creating manual attendance:', error);
     return res.status(500).json({ success: false, message: 'Server Error' });
-  }
+  } finally {await connection.rollback();connection.release();}
 };
 
 export const updateMyAttendance = async (req: Request, res: Response) => {
+  const connection=await db.getConnection();
   try {
     const userId = (req as any).user?.userId;
     if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const { idOrDate } = req.params;
     const { inTime, outTime, date } = req.body;
-    const [empRows] = await db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId]);
+    await connection.beginTransaction();
+    const [empRows] = await connection.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1 FOR UPDATE', [userId]);
     if (empRows.length === 0) return res.status(404).json({ success: false, message: 'Employee profile not found' });
     const employeeId = empRows[0].id;
-    const [records] = await db.query<RowDataPacket[]>('SELECT * FROM attendance_records WHERE employeeId = ? AND (id = ? OR date = ?) LIMIT 1', [employeeId, idOrDate, date || idOrDate]);
+    const [records] = await connection.query<RowDataPacket[]>('SELECT * FROM attendance_records WHERE employeeId = ? AND (id = ? OR date = ?) LIMIT 1', [employeeId, idOrDate, date || idOrDate]);
     if (records.length === 0) return res.status(404).json({ success: false, message: 'Attendance record not found' });
     const record = records[0];
     const dateStr = record.date instanceof Date ? record.date.toISOString().split('T')[0] : String(record.date).split('T')[0];
-    const inDateTime = `${dateStr} ${inTime}:00`;
-    const outDateTime = `${dateStr} ${outTime}:00`;
-    const totalHours = parseFloat(((new Date(`${dateStr}T${outTime}`).getTime() - new Date(`${dateStr}T${inTime}`).getTime()) / 3600000).toFixed(2));
-    await db.query('UPDATE attendance_records SET inTime = ?, outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, updatedAt = NOW() WHERE id = ?', [inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), record.id]);
-    await db.query('UPDATE attendance_raw_logs SET timestamp = ? WHERE employeeId = ? AND DATE(timestamp) = ? AND logType = ?', [inDateTime, employeeId, dateStr, 'In']);
-    await db.query('UPDATE attendance_raw_logs SET timestamp = ? WHERE employeeId = ? AND DATE(timestamp) = ? AND logType = ?', [outDateTime, employeeId, dateStr, 'Out']);
+    let range;try{range=attendanceRange(dateStr,inTime,outTime);}catch{return res.status(400).json({success:false,message:'A valid date and different in/out times are required.'});}
+    await saveAttendance(connection,record.id,employeeId,dateStr,range.inTime,range.outTime,{savedShiftId:record.shiftId,isException:1});
+    await connection.commit();
     return res.json({ success: true, message: 'Attendance updated successfully' });
   } catch (error: any) {
     console.error('Error updating attendance:', error);
     return res.status(500).json({ success: false, message: 'Server Error' });
-  }
+  } finally {await connection.rollback();connection.release();}
 };
 
 export const getMyShift = async (req: Request, res: Response) => {
@@ -712,10 +707,10 @@ export const getMyShift = async (req: Request, res: Response) => {
        FROM attendance_roster_assignments a
        JOIN attendance_roster_groups g ON COALESCE(a.groupId, a.rosterGroupId) = g.id
        WHERE a.employeeId = ? AND a.status = 'Active'
-         AND a.effectiveStartDate <= CURRENT_DATE()
-         AND (a.effectiveEndDate IS NULL OR a.effectiveEndDate >= CURRENT_DATE())
+         AND a.effectiveStartDate <= ?
+         AND (a.effectiveEndDate IS NULL OR a.effectiveEndDate >= ?)
        ORDER BY a.effectiveStartDate DESC, a.createdAt DESC LIMIT 1`,
-      [employeeId]
+      [employeeId,localToday(),localToday()]
     );
 
     if (assignmentRows.length === 0) {
@@ -881,29 +876,26 @@ export const resolveException = async (req: Request, res: Response) => {
         const outDateStr = outDate.toISOString().slice(0, 10);
         const inDateTime = `${dateStr} ${inTime}:00`;
         const outDateTime = `${outDateStr} ${outTime}:00`;
-        const totalHours = Number((((endMinutes - startMinutes + (crossesMidnight ? 1440 : 0)) / 60)).toFixed(2));
 
         let recordId = uuidv4();
         // An approved correction changes the normalized record. Preserve original
         // punch logs as audit evidence instead of creating duplicate punches.
         const [existing] = await connection.query<RowDataPacket[]>(
           exc.recordId
-            ? 'SELECT id FROM attendance_records WHERE id = ? AND employeeId = ? AND date = ? LIMIT 1 FOR UPDATE'
-            : 'SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1 FOR UPDATE',
+            ? 'SELECT id,shiftId FROM attendance_records WHERE id = ? AND employeeId = ? AND date = ? LIMIT 1 FOR UPDATE'
+            : 'SELECT id,shiftId FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1 FOR UPDATE',
           exc.recordId ? [exc.recordId, exc.employeeId, exc.date] : [exc.employeeId, exc.date]
         );
         if (exc.recordId && existing.length === 0) throw new Error('The attendance record for this correction no longer exists');
         
         if (existing.length > 0) {
           recordId = existing[0].id;
-          await connection.query('UPDATE attendance_records SET inTime = ?, outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, status = ?, isException = 1, updatedAt = NOW() WHERE id = ?', 
-            [inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 'APPROVED', existing[0].id]);
         } else {
           await connection.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), exc.employeeId, inDateTime, 'In', 'Manual (Approved)']);
           await connection.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), exc.employeeId, outDateTime, 'Out', 'Manual (Approved)']);
-          await connection.query('INSERT INTO attendance_records (id, employeeId, date, inTime, outTime, totalHours, regularHours, overtimeHours, lateMinutes, earlyDepartureMinutes, isLate, status, isException, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())', 
-            [recordId, exc.employeeId, exc.date, inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 0, 0, 0, 'APPROVED', 1]);
+          await connection.query('INSERT INTO attendance_records (id,employeeId,date) VALUES (?,?,?)',[recordId,exc.employeeId,exc.date]);
         }
+        await saveAttendance(connection,recordId,exc.employeeId,dateStr,inDateTime,outDateTime,{savedShiftId:existing[0]?.shiftId,status:'APPROVED',isException:1});
         
         await connection.query('UPDATE attendance_exceptions SET status = ?, resolvedBy = ?, resolvedAt = NOW(), resolutionNotes = ?, recordId = ?, updatedAt = NOW() WHERE id = ?',
           [status, managerId, resolutionNotes || null, recordId, id]);

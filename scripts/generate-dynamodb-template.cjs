@@ -21,6 +21,21 @@ const tables = definitions.map(([, name, body]) => {
   return { name, partitionKey: keys[0], ...(keys[1] ? { sortKey: keys[1] } : {}) };
 });
 assert.deepEqual(tables.map(table => table.name).sort(), [...manifest.tables].sort());
+const entitySchemas = Object.fromEntries(definitions.map(([, name, body]) => {
+  const columns = [...body.matchAll(/^\s*`([^`]+)`\s+([^\n]+)/gm)].map(([, column, definition]) => {
+    const match = definition.match(/\bDEFAULT\s+('(\\.|[^'])*'|NULL|CURRENT_TIMESTAMP(?:\(\d+\))?|[-\d.]+)/i);
+    let value = null;
+    if (match) {
+      if (/^CURRENT_TIMESTAMP/i.test(match[1])) value = '__current_timestamp__';
+      else if (match[1].startsWith("'")) value = match[1].slice(1, -1).replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+      else if (match[1] !== 'NULL') value = Number(match[1]);
+    }
+    return [column, { type: definition.split(/[ (]/)[0].toLowerCase(), default: value, autoUpdate: /ON UPDATE CURRENT_TIMESTAMP/i.test(definition) }];
+  });
+  const uniqueKeys = [...body.matchAll(/UNIQUE KEY `[^`]+` \(([^)]+)\)/g)]
+    .map(([, fields]) => [...fields.matchAll(/`([^`]+)`/g)].map(match => match[1]));
+  return [name, { columns: Object.fromEntries(columns), uniqueKeys }];
+}));
 
 const Resources = Object.fromEntries(tables.map((table) => {
   const keys = [table.partitionKey, table.sortKey].filter(Boolean);
@@ -68,4 +83,5 @@ fs.writeFileSync(path.join(root, 'src/storage/table-definitions.ts'),
     partitionKey: table.partitionKey, ...(table.sortKey ? { sortKey: table.sortKey } : {}),
   }])), null, 2) + ' as const;\n' +
   'export type EntityName = keyof typeof tableDefinitions;\n');
+fs.writeFileSync(path.join(root, 'src/storage/entity-schemas.json'), JSON.stringify(entitySchemas));
 console.log(`Generated ${tables.length} separate DynamoDB tables (${Buffer.byteLength(JSON.stringify(template))} bytes).`);

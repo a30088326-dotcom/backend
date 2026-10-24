@@ -574,24 +574,46 @@ export const updateGeographyParent = async (req: Request, res: Response) => {
 
 // --- BENEFITS ---
 export const getBenefits = async (req: Request, res: Response) => {
-  try { const [rows] = await db.query('SELECT * FROM eim_benefits ORDER BY name ASC'); return res.json({ success: true, data: rows }); }
+  try {
+    const [rows]:any = await db.query('SELECT * FROM eim_benefits ORDER BY name ASC');
+    const [links]:any = await db.query('SELECT benefitId,salaryGradeId FROM eim_benefit_salary_grades');
+    return res.json({success:true,data:rows.map((row:any)=>({...row,eligibleSalaryGrades:links.filter((link:any)=>link.benefitId===row.id).map((link:any)=>link.salaryGradeId)}))});
+  }
   catch (err) { return res.status(500).json({ success: false }); }
 };
-export const createBenefit = async (req: Request, res: Response) => {
+async function saveBenefit(req:Request,res:Response,id?:string) {
+  let connection:Awaited<ReturnType<typeof db.getConnection>>|undefined;
   try {
+    connection=await db.getConnection();
     const { code, name, category, isCash, defaultAmount, currency, effectiveStartDate, effectiveEndDate, isActive, eligibleSalaryGrades } = req.body;
-    const bid = uuidv4();
-    await db.query(`INSERT INTO eim_benefits (id, code, name, category, isCash, defaultAmount, currency, effectiveStartDate, effectiveEndDate, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-      [bid, code, name, category, isCash, defaultAmount || null, currency, effectiveStartDate || null, effectiveEndDate || null, isActive !== false]);
-    
-    if (eligibleSalaryGrades && eligibleSalaryGrades.length > 0) {
-      for (const sgId of eligibleSalaryGrades) {
-        await db.query('INSERT INTO eim_benefit_salary_grades (benefitId, salaryGradeId) VALUES (?, ?)', [bid, sgId]);
+    if(!code?.trim()||!name?.trim())return res.status(400).json({success:false,message:'Benefit code and name are required.'});
+    if(eligibleSalaryGrades!==undefined&&(!Array.isArray(eligibleSalaryGrades)||eligibleSalaryGrades.some((value:unknown)=>typeof value!=='string')))return res.status(400).json({success:false,message:'Choose valid salary grades.'});
+    const grades=eligibleSalaryGrades===undefined?undefined:[...new Set<string>(eligibleSalaryGrades)];
+    if(grades?.length){
+      const [valid]:any=await connection.query('SELECT id FROM eim_salary_grades WHERE id IN (?)',[grades]);
+      if(valid.length!==grades.length)return res.status(400).json({success:false,message:'A selected salary grade no longer exists.'});
+    }
+    await connection.beginTransaction();
+    const bid=id||uuidv4();
+    if(id){
+      const [existing]:any=await connection.query('SELECT id FROM eim_benefits WHERE id=? FOR UPDATE',[id]);
+      if(!existing.length){await connection.rollback();return res.status(404).json({success:false,message:'Benefit not found.'});}
+      await connection.query('UPDATE eim_benefits SET code=?,name=?,category=?,isCash=?,defaultAmount=?,currency=?,effectiveStartDate=?,effectiveEndDate=?,isActive=?,updatedAt=NOW() WHERE id=?',[code,name,category,isCash,defaultAmount??null,currency||'LKR',effectiveStartDate||null,effectiveEndDate||null,isActive!==false&&isActive!==0,id]);
+    }else{
+      await connection.query('INSERT INTO eim_benefits (id,code,name,category,isCash,defaultAmount,currency,effectiveStartDate,effectiveEndDate,isActive) VALUES (?,?,?,?,?,?,?,?,?,?)',[bid,code,name,category,isCash??false,defaultAmount??null,currency||'LKR',effectiveStartDate||null,effectiveEndDate||null,isActive!==false&&isActive!==0]);
+    }
+    if(grades!==undefined){
+      await connection.query('DELETE FROM eim_benefit_salary_grades WHERE benefitId=?',[bid]);
+      for(const grade of grades){
+        await connection.query('INSERT INTO eim_benefit_salary_grades (benefitId,salaryGradeId) VALUES (?,?)',[bid,grade]);
       }
     }
-    return res.status(201).json({ success: true });
-  } catch (err) { return res.status(500).json({ success: false }); }
-};
+    await connection.commit();
+    return res.status(id?200:201).json({success:true,message:id?'Benefit updated':'Benefit created'});
+  } catch(err) {await connection?.rollback();console.error('Unable to save benefit',err);return res.status(500).json({success:false,message:'Unable to save benefit.'});}
+  finally {connection?.release();}
+}
+export const createBenefit = (req:Request,res:Response)=>saveBenefit(req,res);
 
 // --- PHASE 3 ---
 
@@ -1540,19 +1562,7 @@ export const updateGeography = async (req: Request, res: Response) => {
 
 
 export const updateBenefit = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const {  code, name, category, isCash, defaultAmount, currency, effectiveStartDate, effectiveEndDate, isActive, eligibleSalaryGrades  } = req.body;
-    
-    await db.query(
-      `UPDATE eim_benefits SET code = ?, name = ?, category = ?, isCash = ?, defaultAmount = ?, currency = ?, effectiveStartDate = ?, effectiveEndDate = ?, isActive = ?, eligibleSalaryGrades = ?, updatedAt = NOW() WHERE id = ?`,
-      [code, name, category, isCash, defaultAmount, currency, (effectiveStartDate || null), (effectiveEndDate || null), (isActive !== false), eligibleSalaryGrades, id]
-    );
-    return res.status(200).json({ success: true, message: 'Benefit updated' });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, message: 'Error updating benefit' });
-  }
+  return saveBenefit(req,res,String(req.params.id));
 };
 
 

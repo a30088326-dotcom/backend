@@ -25,7 +25,14 @@ async function main() {
     await conn.beginTransaction();
     (db as any).query=conn.query.bind(conn);(db as any).getConnection=async()=>sandbox;
     const [[admin]]=await conn.query<RowDataPacket[]>("SELECT id FROM users WHERE role='SUPER_ADMIN' AND isActive=1 LIMIT 1");
-    const [employees]=await conn.query<RowDataPacket[]>("SELECT e.id,e.userId FROM employee_information_employees e JOIN users u ON u.id=e.userId JOIN employee_information_workstation_details w ON w.employeeId=e.id WHERE e.status='Active' AND e.isActive=1 AND u.role='EMPLOYEE' ORDER BY e.id LIMIT 4");
+    // This test must work on a fresh installation with no existing employee roster.
+    const employees=[];
+    for(let i=0;i<4;i++){
+      const id=randomUUID(),userId=randomUUID();employees.push({id,userId});
+      await conn.query("INSERT INTO users(id,email,name,role,isActive) VALUES (?,?,?,'EMPLOYEE',1)",[userId,`${userId}@roster.test`,'Roster test employee']);
+      await conn.query("INSERT INTO employee_information_employees(id,userId,employeeNo,employeeNumber,firstName,lastName,status,isActive,organizationalRank) VALUES (?,?,?,?,?,'Fixture','Active',1,'EMPLOYEE')",[id,userId,id,id,'Roster']);
+      await conn.query('INSERT INTO employee_information_workstation_details(id,employeeId) VALUES (?,?)',[randomUUID(),id]);
+    }
     assert.ok(admin);assert.equal(employees.length,4);
     const user={userId:admin.id};
     for(const id of [department,sameNameOther,empty]) await conn.query("INSERT INTO eim_structures (id,code,name,structureType,isActive,status) VALUES (?,?,?,'Department',1,'Active')",[id,id,id===empty?'Empty department':'Duplicate department name']);

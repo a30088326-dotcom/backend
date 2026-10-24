@@ -24,7 +24,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
-const upload = multer({ storage });
+const upload = multer({ storage,limits:{fileSize:10*1024*1024,files:4} });
 
 const router = Router();
 router.use('/profile-requests', profileRequests);
@@ -93,5 +93,10 @@ router.delete('/attachments/:id', requireAuth, deleteAttachment);
 
 // Profile Picture
 router.post('/profile-picture', requireAuth, upload.single('file'), uploadProfilePicture);
+
+router.use((error:any,_req:any,res:any,next:any)=>{
+  if(error instanceof multer.MulterError)return res.status(error.code==='LIMIT_FILE_SIZE'?413:400).json({success:false,message:error.code==='LIMIT_FILE_SIZE'?'Each file must be 10 MB or smaller.':'Upload up to four files at a time.'});
+  next(error);
+});
 
 export default router;

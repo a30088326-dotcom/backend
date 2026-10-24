@@ -305,11 +305,11 @@ router.post(
       const [signedRows] = await db.query<RowDataPacket[]>('SELECT * FROM contracts WHERE id = ? LIMIT 1', [id]);
       const signed = signedRows[0];
 
-      // ─── Automated Data Pipeline ───
-      const candidateId = contract.candidateId;
-
-      // 1. Upgrade candidate to EMPLOYEE (Marks them as Onboarded)
-      await db.query('UPDATE users SET role = "EMPLOYEE" WHERE id = ?', [candidateId]);
+      // A signature alone does not create the HR profile, roster or reporting
+      // mapping. Keep unactivated candidates in HR's onboarding queue.
+      await db.query(`UPDATE users u JOIN employee_information_employees e ON e.userId=u.id
+        SET u.role='EMPLOYEE',u.updatedAt=NOW()
+        WHERE u.id=? AND u.role='CANDIDATE' AND e.status='Active' AND e.isActive=1`, [contract.candidateId]);
 
       res.json({
         success: true,

@@ -6,6 +6,7 @@ const url = process.env.DATABASE_URL || 'mysql://root:@localhost:3306/hr_onboard
 
 export const db = mysql.createPool({
   uri: url,
+  timezone: '+05:30',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
