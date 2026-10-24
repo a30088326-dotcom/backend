@@ -62,7 +62,7 @@ const template = {
       ServiceName:sub('${AppName}-api'),Cluster:ref('Cluster'),InfrastructureRoleArn:att('InfrastructureRole','Arn'),ExecutionRoleArn:att('ExecutionRole','Arn'),TaskRoleArn:att('TaskRole','Arn'),Cpu:'256',Memory:'512',HealthCheckPath:'/health',
       NetworkConfiguration:{Subnets:ref('SubnetIds')},ScalingTarget:{MinTaskCount:1,MaxTaskCount:2,AutoScalingMetric:'AVERAGE_CPU',AutoScalingTargetValue:70},
       PrimaryContainer:{Image:ref('ApiImage'),ContainerPort:3001,AwsLogsConfiguration:{LogGroup:ref('LogGroup'),LogStreamPrefix:'api'},
-        Environment:[['NODE_ENV','production'],['PORT','3001'],['TZ','Asia/Colombo'],['DATABASE_PROVIDER','dynamodb'],['UPLOAD_STORAGE','s3'],['AWS_REGION',ref('AWS::Region')],['DYNAMODB_TABLE_PREFIX',ref('TablePrefix')],['UPLOADS_BUCKET',ref('UploadsBucket')],['FRONTEND_URL',ref('FrontendOrigin')],['EXTERNAL_FRONTEND_URL',ref('FrontendOrigin')],['SMTP_HOST','smtp.gmail.com'],['SMTP_PORT','587'],['SMTP_SECURE','false']].map(([Name,Value])=>({Name,Value})),
+        Environment:[['NODE_ENV','production'],['PORT','3001'],['TZ','Asia/Colombo'],['DEPLOYMENT_REVISION',ref('ApiImage')],['DATABASE_PROVIDER','dynamodb'],['UPLOAD_STORAGE','s3'],['AWS_REGION',ref('AWS::Region')],['DYNAMODB_TABLE_PREFIX',ref('TablePrefix')],['UPLOADS_BUCKET',ref('UploadsBucket')],['FRONTEND_URL',ref('FrontendOrigin')],['EXTERNAL_FRONTEND_URL',ref('FrontendOrigin')],['SMTP_HOST','smtp.gmail.com'],['SMTP_PORT','587'],['SMTP_SECURE','false']].map(([Name,Value])=>({Name,Value})),
         Secrets:['JWT_SECRET','SMTP_USER','SMTP_PASS'].map(Name=>({Name,ValueFrom:sub('${RuntimeSecret}:'+Name+'::')}))}
     }}
   },
