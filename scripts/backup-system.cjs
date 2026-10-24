@@ -38,9 +38,21 @@ async function main() {
     }
     fs.writeSync(fd, 'SET FOREIGN_KEY_CHECKS=1;\n'); fs.closeSync(fd);
     await connection.commit();
+    const uploadsDirectory=path.resolve(__dirname,'../uploads');
+    const fileManifest=[];
+    if(fs.existsSync(uploadsDirectory)){
+      const fileBackup=path.join(directory,'uploads');fs.mkdirSync(fileBackup);
+      for(const entry of fs.readdirSync(uploadsDirectory,{withFileTypes:true})){
+        if(!entry.isFile())continue;
+        const sourceFile=path.join(uploadsDirectory,entry.name),backupFile=path.join(fileBackup,entry.name);
+        fs.copyFileSync(sourceFile,backupFile,fs.constants.COPYFILE_EXCL);
+        fileManifest.push({name:entry.name,bytes:fs.statSync(backupFile).size,sha256:crypto.createHash('sha256').update(fs.readFileSync(backupFile)).digest('hex')});
+      }
+    }
+    manifest.uploads=fileManifest;
     manifest.sha256 = crypto.createHash('sha256').update(fs.readFileSync(filename)).digest('hex');
     fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest, null, 2));
-    console.log(JSON.stringify({ directory, tables: Object.keys(manifest.tables).length, rows: Object.values(manifest.tables).reduce((a,b) => a+b,0), sha256: manifest.sha256 }));
+    console.log(JSON.stringify({ directory, tables: Object.keys(manifest.tables).length, rows: Object.values(manifest.tables).reduce((a,b) => a+b,0), uploadedFiles:fileManifest.length, sha256: manifest.sha256 }));
   } catch (error) { await connection.rollback(); throw error; }
   finally { await connection.end(); }
 }

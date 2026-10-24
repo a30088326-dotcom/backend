@@ -35,8 +35,23 @@ async function persistLeave(actor:{userId:string;role:string},payload:unknown,ap
     check(v.halfDayType==='NONE'||type.allowHalfDays,'This leave type does not allow half days.');
     check(!type.commentMandatory||!!(v.reason||v.comments)?.trim(),'A reason is required.');
     check(!type.requireCoveringEmp||!!v.coveringEmployeeId,'Select a covering employee.');
+    if(v.coveringEmployeeId){
+      const [[cover]]=await c.query<RowDataPacket[]>(`SELECT e.id,w.companyId FROM employee_information_employees e JOIN users u ON u.id=e.userId LEFT JOIN employee_information_workstation_details w ON w.employeeId=e.id WHERE u.id=? AND u.id<>? AND u.isActive=1 AND e.status='Active' AND e.isActive=1 LIMIT 1`,[v.coveringEmployeeId,applicantId]);
+      check(cover,'Choose another active employee as cover.');
+      const [[own]]=await c.query<RowDataPacket[]>('SELECT companyId FROM employee_information_workstation_details WHERE employeeId=?',[employee.id]);
+      check(!own?.companyId||cover.companyId===own.companyId,'Choose a covering employee from your company.');
+    }
     check(!type.requireAttachment||!!v.attachmentUrl,'An attachment is required for this leave type.');
     check(!type.needMedicalCertificate || total<=Number(type.maxDaysWithoutMedCert||0) || v.medCertSubmitted,'A medical certificate is required for this leave type.');
+    if(v.attachmentUrl){
+      let filename='';
+      try{const path=new URL(v.attachmentUrl,'http://local.invalid').pathname;check(/^\/(api\/files|uploads)\//.test(path),'Upload a supporting document through this application.');filename=decodeURIComponent(path.split('/').pop()||'');}catch{throw new LeaveError(400,'Upload a valid supporting document.');}
+      check(!!filename&&!/[\\/\x00]/.test(filename),'Upload a valid supporting document.');
+      const [[owned]]=await c.query<RowDataPacket[]>("SELECT id FROM employee_information_employee_attachments WHERE employeeId=? AND SUBSTRING_INDEX(fileUrl,'/',-1) IN (?,?) LIMIT 1",[employee.id,filename,encodeURIComponent(filename)]);
+      check(owned,'Choose a supporting document uploaded to this employee profile.');
+      v.attachmentUrl='/api/files/'+encodeURIComponent(filename);
+    }
+    check(!type.needMedicalCertificate || total<=Number(type.maxDaysWithoutMedCert||0) || !!v.attachmentUrl,'Upload the medical certificate for this request.');
     check(!Number(type.maxDaysPerInstance) || total<=Number(type.maxDaysPerInstance),'This request exceeds the maximum days per instance.');
     const [[year]]=await c.query<RowDataPacket[]>('SELECT id FROM leave_years WHERE isActive=1 AND startDate<=? AND endDate>=? LIMIT 1',[v.startDate,v.endDate]); check(year,'No active leave year covers these dates.');
     const [[overlap]]=await c.query<RowDataPacket[]>(`SELECT id FROM leave_applications WHERE applicantId=? AND (status LIKE 'PENDING%' OR status='APPROVED') AND startDate<=? AND endDate>=? LIMIT 1`,[applicantId,v.endDate,v.startDate]);

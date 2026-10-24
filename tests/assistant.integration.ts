@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import mysql from 'mysql2/promise';
+import { readFileSync } from 'node:fs';
 
 async function main() {
   const source = new URL(process.env.DATABASE_URL || 'mysql://root:@localhost:3306/hr_onboarding');
@@ -24,6 +25,8 @@ async function main() {
     for (const [who,id] of Object.entries(ids)) { const role = who === 'owner' ? 'SUPER_ADMIN' : who === 'candidate' ? 'CANDIDATE' : 'EMPLOYEE'; await db.query('INSERT INTO users (id,name,role,email,isActive) VALUES (?,?,?,?,1)', [id, `${who} Test`, role, `${who}@assistant.test`]); tokens[who] = generateToken({ userId:id,role,email:`${who}@assistant.test` }); if (who !== 'candidate') await db.query('INSERT INTO employee_information_employees (id,userId,reportingManagerId,firstName,lastName,employeeNumber,department,designation,status,isActive,organizationalRank) VALUES (?,?,?,?,?,?,?,?,?,1,?)', [id,id,who === 'employee' ? ids.manager : who === 'manager' || who === 'peer' ? ids.ceo : null,who,'Test',`TEST-${who}`,'Engineering','Engineer','Active',who === 'owner' ? 'OWNER' : who === 'ceo' ? 'CEO' : who === 'manager' ? 'MANAGER' : 'EMPLOYEE']); }
     await db.query('CREATE TABLE attendance_raw_logs (id VARCHAR(36) PRIMARY KEY, employeeId VARCHAR(36), timestamp DATETIME, logType VARCHAR(30), source VARCHAR(50), location TEXT, createdAt DATETIME)');
     await db.query('CREATE TABLE attendance_records (id VARCHAR(36) PRIMARY KEY, employeeId VARCHAR(36), date DATE, inTime DATETIME, outTime DATETIME, status VARCHAR(30), totalHours DECIMAL(10,2), regularHours DECIMAL(10,2), overtimeHours DECIMAL(10,2), createdAt DATETIME, updatedAt DATETIME, UNIQUE KEY employee_date(employeeId,date))');
+    for(const definition of readFileSync('database/schema.sql','utf8').match(/CREATE TABLE `attendance_(?:shifts|roster_assignments|roster_calendars|roster_group_shifts)`[\s\S]*?;/g)||[])await db.query(definition);
+    await db.query('ALTER TABLE attendance_records ADD shiftId VARCHAR(36),ADD lateMinutes INT DEFAULT 0,ADD earlyDepartureMinutes INT DEFAULT 0,ADD isLate BOOLEAN DEFAULT 0,ADD isException BOOLEAN DEFAULT 0');
     await db.query('CREATE TABLE leave_types (id VARCHAR(36) PRIMARY KEY, name VARCHAR(100), code VARCHAR(30), isActive BOOLEAN, allowHalfDays BOOLEAN, commentMandatory BOOLEAN, requireCoveringEmp BOOLEAN, requireAttachment BOOLEAN, isNoPayLeave BOOLEAN, allowNegativeBalance BOOLEAN)');
     await db.query('CREATE TABLE leave_years (id VARCHAR(36) PRIMARY KEY, startDate DATE, endDate DATE, isActive BOOLEAN)');
     await db.query('CREATE TABLE leave_entitlements (id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36), leaveTypeId VARCHAR(36), leaveYearId VARCHAR(36), totalDays DECIMAL(10,2), carryForwardDays DECIMAL(10,2), usedDays DECIMAL(10,2), pendingDays DECIMAL(10,2), updatedAt DATETIME)');

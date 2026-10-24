@@ -47,6 +47,7 @@ export const processEntitlementsForEmployee = async (employeeId: string) => {
       );
 
       const calculatedDays = result.entitlement;
+      const hasCarryForwardRule = /output\s*\.\s*carryForwardAmount\s*=/.test(specificScript?.content || '');
 
       const [entRows] = await db.query<RowDataPacket[]>(
         'SELECT id FROM leave_entitlements WHERE userId = ? AND leaveTypeId = ? AND leaveYearId = ? LIMIT 1',
@@ -55,13 +56,18 @@ export const processEntitlementsForEmployee = async (employeeId: string) => {
       const existing = entRows[0];
 
       if (existing) {
-        await db.query('UPDATE leave_entitlements SET totalDays = ?, updatedAt = NOW() WHERE id = ?', [calculatedDays, existing.id]);
+        if (hasCarryForwardRule) {
+          await db.query('UPDATE leave_entitlements SET totalDays = ?, carryForwardDays = ?, updatedAt = NOW() WHERE id = ?', [calculatedDays, result.carryForwardAmount, existing.id]);
+        } else {
+          // Do not erase manually maintained carry-forward when no script sets it.
+          await db.query('UPDATE leave_entitlements SET totalDays = ?, updatedAt = NOW() WHERE id = ?', [calculatedDays, existing.id]);
+        }
         generated.push({ type: lt.code, days: calculatedDays });
       } else {
         await db.query(`
           INSERT INTO leave_entitlements (id, userId, leaveTypeId, leaveYearId, totalDays, usedDays, pendingDays, carryForwardDays, earnedDays, status, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 'PROCESSED', NOW(), NOW())
-        `, [uuidv4(), employee.userId, lt.id, leaveYear.id, calculatedDays]);
+          VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, 'PROCESSED', NOW(), NOW())
+        `, [uuidv4(), employee.userId, lt.id, leaveYear.id, calculatedDays, hasCarryForwardRule ? result.carryForwardAmount : 0]);
         generated.push({ type: lt.code, days: calculatedDays });
       }
     } catch (err: any) {
@@ -90,8 +96,9 @@ export const generateEntitlements = async (req: Request, res: Response) => {
 
 export const getEntitlementsReport = async (req: Request, res: Response) => {
   try {
-    const [users] = await db.query<RowDataPacket[]>('SELECT id, name, role FROM users WHERE role IN ("EMPLOYEE", "ADMIN")');
-    const [entitlements] = await db.query<RowDataPacket[]>('SELECT * FROM leave_entitlements');
+    const [users] = await db.query<RowDataPacket[]>(`SELECT u.id,u.name,u.role FROM users u JOIN employee_information_employees e ON e.userId=u.id WHERE u.role<>'CANDIDATE' AND u.isActive=1 AND e.isActive=1`);
+    const [years] = await db.query<RowDataPacket[]>('SELECT id,year FROM leave_years WHERE isActive=1 ORDER BY year DESC LIMIT 1');
+    const [entitlements] = await db.query<RowDataPacket[]>('SELECT * FROM leave_entitlements WHERE leaveYearId=?',[years[0]?.id||'']);
     const [leaveTypes] = await db.query<RowDataPacket[]>('SELECT id, code FROM leave_types');
 
     const reportData = [];
@@ -119,7 +126,7 @@ export const getEntitlementsReport = async (req: Request, res: Response) => {
         if (code === 'AL001' || code === 'ANN' || code === 'ANNUAL') code = 'AL';
         if (code === 'MED' || code === 'MEDICAL') code = 'ML';
         if (code === 'CAS' || code === 'CASUAL') code = 'CL';
-        acc[code] = ent ? ent.totalDays : 0;
+        acc[code] = ent ? Number(ent.totalDays||0)+Number(ent.carryForwardDays||0)-Number(ent.usedDays||0)-Number(ent.pendingDays||0) : 0;
         return acc;
       }, {});
 
@@ -127,7 +134,8 @@ export const getEntitlementsReport = async (req: Request, res: Response) => {
         employeeId: emp?.employeeNo || u.id.substring(0,8),
         name: u.name || `User ${u.id.substring(0,5)}`,
         joinDate: joinDateObj ? joinDateObj.toISOString().split('T')[0] : 'N/A',
-        balances
+        balances,
+        leaveYear:years[0]?.year||null
       });
     }
 

@@ -72,7 +72,12 @@ export class LeaveRulesEvaluator {
     if (!employee) throw new Error('Employee not found');
 
     const [pdRows] = await db.query<RowDataPacket[]>('SELECT gender FROM employee_information_personal_details WHERE employeeId = ? LIMIT 1', [input.employeeId]);
-    const gender = pdRows[0]?.gender?.toUpperCase();
+    let gender = pdRows[0]?.gender?.toUpperCase();
+    // Onboarding historically stores lookup IDs; older employees store names.
+    if (gender && /^[0-9A-F-]{36}$/.test(gender)) {
+      const [genders] = await db.query<RowDataPacket[]>('SELECT name FROM eim_genders WHERE id=? LIMIT 1', [pdRows[0].gender]);
+      gender = genders[0]?.name?.toUpperCase();
+    }
 
     const [edRows] = await db.query<RowDataPacket[]>('SELECT dateJoined, probationStatus FROM employee_information_employees WHERE id = ? LIMIT 1', [input.employeeId]);
     const empDetails = edRows[0];
@@ -95,7 +100,7 @@ export class LeaveRulesEvaluator {
     const isMale = gender === 'MALE';
     const isFemale = gender === 'FEMALE';
 
-    if (scriptContent && scriptContent.includes('output.entitlement =')) {
+    if (scriptContent && /output\s*\.\s*entitlement\s*=/.test(scriptContent)) {
         logs.push("Executing Custom Script...");
         const context = {
             EmployeeNo: employee.employeeNo,

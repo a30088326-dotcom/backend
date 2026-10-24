@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
+import filesRoutes from './modules/onboarding/files.routes';
 
 // Routes
 import authRoutes       from './modules/auth/auth.routes';
@@ -30,10 +30,12 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
 // ─── Core Middleware ──────────────────────────────────────────────────────────
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
+const allowedOrigins=new Set([
+  ...(process.env.FRONTEND_URL||'').split(',').map(origin=>origin.trim().replace(/\/$/,'')).filter(Boolean),
+  ...(process.env.NODE_ENV==='production'?[]:['http://localhost:5174','http://127.0.0.1:5174','http://localhost:5173','http://127.0.0.1:5173'])
+]);
 app.use(cors({
-  origin: true, // Allow all origins for dev
+  origin: (origin,callback)=>callback(null,!origin||allowedOrigins.has(origin)),
   credentials: true,
 }));
 
@@ -59,6 +61,8 @@ app.use('/api/users',      userRoutes);
 app.use('/api/invites',    inviteRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/documents',  documentRoutes);
+app.use('/api/files', filesRoutes);
+app.use('/uploads', filesRoutes); // Legacy links still require the same authorization.
 app.use('/api/contracts',  contractRoutes);
 app.use('/api/employee_information/audit', eimsRoutes);
 

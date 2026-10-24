@@ -9,6 +9,7 @@ import { organizationAccess } from '../../shared/services/organization.service';
 import { syncEmployeeMappings, updateEmployeeReporting } from '../../shared/services/employee-mapping.service';
 import { getProfileExtras, identifiedContacts } from './profile-requests';
 import { organizationModuleScope } from '../../middleware/module-action';
+import { onboardingContact, populateDetailLabels } from './onboarding-mapping';
 // GET all employees for the advanced EIMS search grid
 export const getEmployees = async (req: Request, res: Response) => {
   try {
@@ -120,7 +121,7 @@ export const getEmployeeById = async (req: Request, res: Response) => {
       
       if (!contactDetails) contactDetails = { permanent: null, working: null, official: null, residential: null };
       if (!contactDetails.permanent) {
-        contactDetails.permanent = { address: onboardingProfile.addressLine1 || '', city: onboardingProfile.city || '', postalCode: onboardingProfile.postalCode || '' };
+        contactDetails.permanent = { address: [onboardingProfile.addressLine1, onboardingProfile.addressLine2].filter(Boolean).join(' '), city: onboardingProfile.city || '', postalCode: onboardingProfile.postalCode || '' };
       }
       if (!contactDetails.residential) contactDetails.residential = {};
       if (!contactDetails.residential.emergencyContacts || contactDetails.residential.emergencyContacts.length === 0) {
@@ -137,6 +138,7 @@ export const getEmployeeById = async (req: Request, res: Response) => {
           }];
         }
       }
+      contactDetails = onboardingContact(contactDetails, onboardingProfile, contactDetails.official?.email || '');
     }
 
     if (workstationDetails && workstationDetails.functionalRole !== undefined) {
@@ -145,6 +147,7 @@ export const getEmployeeById = async (req: Request, res: Response) => {
 
     if(contactDetails?.residential?.emergencyContacts)contactDetails.residential.emergencyContacts=identifiedContacts(contactDetails.residential.emergencyContacts);
     const extras = await getProfileExtras(id);
+    await populateDetailLabels(personalDetails, workstationDetails);
     const fullEmployee = {
       ...employee,
       otherDetails: extras,
@@ -258,7 +261,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
       
       if (!contactDetails) contactDetails = { permanent: null, working: null, official: null, residential: null };
       if (!contactDetails.permanent && onboardingProfile) {
-        contactDetails.permanent = { address: onboardingProfile.addressLine1 || '', city: onboardingProfile.city || '', postalCode: onboardingProfile.postalCode || '' };
+        contactDetails.permanent = { address: [onboardingProfile.addressLine1, onboardingProfile.addressLine2].filter(Boolean).join(' '), city: onboardingProfile.city || '', postalCode: onboardingProfile.postalCode || '' };
       }
       if (!contactDetails.residential) contactDetails.residential = {};
       if ((!contactDetails.residential.emergencyContacts || contactDetails.residential.emergencyContacts.length === 0) && onboardingProfile?.emergencyContactName) {
@@ -271,6 +274,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
           accountNo: onboardingProfile.accountNumber, accountType: onboardingProfile.accountType, currency: onboardingProfile.currency
         }];
       }
+      if (onboardingProfile) contactDetails = onboardingContact(contactDetails, onboardingProfile, userInfo?.email || '');
     }
 
     // Fetch designation name
@@ -297,6 +301,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
 
     if(contactDetails?.residential?.emergencyContacts)contactDetails.residential.emergencyContacts=identifiedContacts(contactDetails.residential.emergencyContacts);
     const extras = employee ? await getProfileExtras(employee.id) : {};
+    await populateDetailLabels(personalDetails, workstationDetails);
     const fullEmployee = {
       ...(employee || {}),
       otherDetails: extras,
@@ -477,7 +482,8 @@ export const createEmployee = async (req: Request, res: Response) => {
           personal: contactDetails.personal || null,
           emergencyContacts: contactDetails.emergencyContacts || []
         },
-        primaryContactOption: contactDetails.primaryContactPreference || contactDetails.primaryContactOption || null
+        primaryContactOption: contactDetails.primaryContactPreference || contactDetails.primaryContactOption || null,
+        linkedIn: contactDetails.linkedIn || null
       };
     }
 
@@ -541,10 +547,11 @@ export const createEmployee = async (req: Request, res: Response) => {
       
       if (!contactDetails || Object.keys(contactDetails).length === 0) {
         contactDetails = {
-          permanent: { address: autoMappedOnboarding.addressLine1 || '', city: autoMappedOnboarding.city || '', postalCode: autoMappedOnboarding.postalCode || '' },
+          permanent: { address: [autoMappedOnboarding.addressLine1, autoMappedOnboarding.addressLine2].filter(Boolean).join(' '), city: autoMappedOnboarding.city || '', postalCode: autoMappedOnboarding.postalCode || '' },
           residential: { emergencyContacts: [{ name: autoMappedOnboarding.emergencyContactName, relationship: autoMappedOnboarding.emergencyContactRelation, primaryPhone: autoMappedOnboarding.emergencyContactPhone }] }
         };
       }
+      contactDetails = onboardingContact(contactDetails, autoMappedOnboarding, user.email || '');
       
       if (!payrollDetails?.bankDetails?.bank && autoMappedOnboarding.bankName) {
         if (!payrollDetails) payrollDetails = {};
@@ -615,6 +622,7 @@ export const createEmployee = async (req: Request, res: Response) => {
           id: uuidv4(),
           employeeId,
           bankName: payrollDetails.bankDetails.bank,
+          accountHolderName: payrollDetails.bankDetails.accountName || payrollDetails.bankDetails.accountHolderName || null,
           branch: payrollDetails.bankDetails.branch || '',
           accountType: payrollDetails.bankDetails.accountType || 'Savings',
           accountNo: payrollDetails.bankDetails.accountNumber || '',
@@ -684,7 +692,7 @@ export const uploadAttachment = async (req: Request, res: Response) => {
         fileName: file.originalname,
         fileType: file.mimetype,
         fileSize: file.size,
-        fileUrl: `/uploads/${file.filename}`,
+        fileUrl: `/api/files/${encodeURIComponent(file.filename)}`,
         uploadedAt: new Date()
       };
       await db.query('INSERT INTO employee_information_employee_attachments SET ?', attachData);
@@ -1041,6 +1049,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
           id: uuidv4(),
           employeeId: id,
           bankName: payrollDetails.bankDetails.bank,
+          accountHolderName: payrollDetails.bankDetails.accountName || payrollDetails.bankDetails.accountHolderName || null,
           branch: payrollDetails.bankDetails.branch || '',
           accountType: payrollDetails.bankDetails.accountType || 'Savings',
           accountNo: payrollDetails.bankDetails.accountNumber || '',
@@ -1150,6 +1159,7 @@ export const convertCandidate = async (req: Request, res: Response) => {
         lastName: obp?.lastName || '',
         fullName: obp ? `${obp.firstName} ${obp.lastName || ''}`.trim() : candidate.name,
         gender: obp?.gender || 'Male',
+        nationality: obp?.nationality || null,
         civilStatus: obp?.civilStatus || 'Single',
         dob: obp?.dateOfBirth ? new Date(obp.dateOfBirth) : null,
         nicNo: obp?.nicNo || null,
@@ -1159,12 +1169,14 @@ export const convertCandidate = async (req: Request, res: Response) => {
       const workstationDetails = { id: uuidv4(), employeeId };
       await connection.query('INSERT INTO employee_information_workstation_details SET ?', workstationDetails);
 
+      const mappedContact = obp ? onboardingContact(null, obp, candidate.email) : null;
       const contactDetails = {
         id: uuidv4(),
         employeeId,
         official: JSON.stringify({ email: candidate.email }),
-        permanent: obp ? JSON.stringify({ address: obp.addressLine1, city: obp.city, postalCode: obp.postalCode }) : null,
-        residential: obp ? JSON.stringify({ personal: { mobile: obp.phoneNumber, email: candidate.email }, emergencyContacts: obp.emergencyContactName ? [{ name: obp.emergencyContactName, relationship: obp.emergencyContactRelation, primaryPhone: obp.emergencyContactPhone || '' }] : [] }) : null
+        permanent: mappedContact ? JSON.stringify(mappedContact.permanent) : null,
+        residential: mappedContact ? JSON.stringify(mappedContact.residential) : null,
+        linkedIn: mappedContact?.linkedIn || null
       };
       await connection.query('INSERT INTO employee_information_contact_details SET ?', contactDetails);
 

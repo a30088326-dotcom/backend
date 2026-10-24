@@ -10,6 +10,18 @@ import { ZodError } from 'zod';
 const router = Router();
 router.use(requireAuth);
 
+// Minimal staff directory for covering assignments; no contact or payroll data.
+router.get('/covering-employees',async(req:AuthRequest,res:Response)=>{
+  try{
+    const [[own]]=await db.query<RowDataPacket[]>(`SELECT e.id,w.companyId FROM employee_information_employees e LEFT JOIN employee_information_workstation_details w ON w.employeeId=e.id WHERE e.userId=? AND e.status='Active' AND e.isActive=1 LIMIT 1`,[req.user!.userId]);
+    if(!own)return res.status(404).json({success:false,message:'Active employee profile not found.'});
+    const [rows]=await db.query<RowDataPacket[]>(`SELECT u.id,u.name,e.employeeNo FROM employee_information_employees e JOIN users u ON u.id=e.userId LEFT JOIN employee_information_workstation_details w ON w.employeeId=e.id
+      WHERE e.status='Active' AND e.isActive=1 AND u.isActive=1 AND u.id<>? AND u.role<>'CANDIDATE'
+      AND (? IS NULL OR w.companyId=?) ORDER BY u.name,e.id`,[req.user!.userId,own.companyId,own.companyId]);
+    res.json({success:true,data:rows});
+  }catch{res.status(500).json({success:false,message:'Unable to load covering employees.'});}
+});
+
 // ─── GET /api/leaves/entitlements ─────────────────────────────────────────────
 router.get('/entitlements', async (req: AuthRequest, res: Response) => {
   try {

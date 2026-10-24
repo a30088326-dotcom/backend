@@ -30,11 +30,12 @@ router.get('/team/dashboard', async (req: AuthRequest, res: Response) => {
     const [pending] = await db.query<RowDataPacket[]>(`
       SELECT la.*, u.id AS applicant_id, u.name AS applicant_name, u.email AS applicant_email,
         lt.id AS lt_id, lt.name AS lt_name, lt.color AS lt_color, lt.code AS lt_code,
-        ly.id AS ly_id, ly.year AS ly_year, ly.displayName AS ly_displayName
+        ly.id AS ly_id, ly.year AS ly_year, ly.displayName AS ly_displayName,cover.name AS cover_name
       FROM leave_applications la
       JOIN users u ON u.id = la.applicantId
       JOIN leave_types lt ON lt.id = la.leaveTypeId
       JOIN leave_years ly ON ly.id = la.leaveYearId
+      LEFT JOIN users cover ON cover.id=la.coveringEmployeeId
       WHERE la.approverId = ? AND la.applicantId IN (?) AND la.status LIKE 'PENDING%'
       ORDER BY la.createdAt ASC`, [req.user!.userId, ids]);
     const [leave] = await db.query<RowDataPacket[]>(`
@@ -86,6 +87,8 @@ router.get('/team/dashboard', async (req: AuthRequest, res: Response) => {
       pendingApprovals: pending.map(app => ({ id: app.id, employeeId: app.employeeId || app.applicant_id,
         leaveTypeId: app.leaveTypeId, leaveYearId: app.leaveYearId, startDate: app.startDate,
         endDate: app.endDate, status: app.status, totalDays: app.totalDays, reason: app.reason,
+        halfDayType:app.halfDayType,attachmentUrl:app.attachmentUrl,medCertSubmitted:Boolean(app.medCertSubmitted),medCertRefNo:app.medCertRefNo,medCertIssuedDate:app.medCertIssuedDate,
+        coveringEmployee:app.coveringEmployeeId?{id:app.coveringEmployeeId,name:app.cover_name}:null,
         createdAt: app.createdAt, applicant: { id: app.applicant_id, name: app.applicant_name, email: app.applicant_email },
         leaveType: { id: app.lt_id, name: app.lt_name, color: app.lt_color, code: app.lt_code },
         leaveYear: { id: app.ly_id, year: app.ly_year, displayName: app.ly_displayName } })),

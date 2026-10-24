@@ -1,0 +1,2083 @@
+[
+  {
+    "p": "backend/src/modules/attendance/attendance-scope.service.ts",
+    "line": 13,
+    "start": 1083,
+    "end": 1275,
+    "call": "db.query<RowDataPacket[]>('SELECT employeeId,date,inTime,outTime,totalHours,status,isLate FROM attendance_records WHERE employeeId IN (?) AND date BETWEEN ? AND ? ORDER BY date',[ids,from,to])",
+    "sql": "'SELECT employeeId,date,inTime,outTime,totalHours,status,isLate FROM attendance_records WHERE employeeId IN (?) AND date BETWEEN ? AND ? ORDER BY date'",
+    "args": "[ids,from,to]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance-scope.service.ts",
+    "line": 14,
+    "start": 1299,
+    "end": 1651,
+    "call": "db.query<RowDataPacket[]>(`SELECT e.id AS employeeId,la.startDate,la.endDate,lt.name AS leaveType,lt.color AS colorCode FROM leave_applications la JOIN employee_information_employees e ON e.userId=la.applicantId JOIN leave_types lt ON lt.id=la.leaveTypeId WHERE e.id IN (?) AND la.status='APPROVED' AND la.startDate<=? AND la.endDate>=?`,[ids,to,from])",
+    "sql": "`SELECT e.id AS employeeId,la.startDate,la.endDate,lt.name AS leaveType,lt.color AS colorCode FROM leave_applications la JOIN employee_information_employees e ON e.userId=la.applicantId JOIN leave_types lt ON lt.id=la.leaveTypeId WHERE e.id IN (?) AND la.status='APPROVED' AND la.startDate<=? AND la.endDate>=?`",
+    "args": "[ids,to,from]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 33,
+    "start": 1595,
+    "end": 1836,
+    "call": "db.query<RowDataPacket[]>(req.query.includeArchived === 'true'\n      ? 'SELECT * FROM attendance_shifts ORDER BY createdAt DESC'\n      : \"SELECT * FROM attendance_shifts WHERE COALESCE(status,'Active') <> 'Archived' ORDER BY createdAt DESC\")",
+    "sql": "req.query.includeArchived === 'true'\n      ? 'SELECT * FROM attendance_shifts ORDER BY createdAt DESC'\n      : \"SELECT * FROM attendance_shifts WHERE COALESCE(status,'Active') <> 'Archived' ORDER BY createdAt DESC\""
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 71,
+    "start": 3442,
+    "end": 3589,
+    "call": "db.query<RowDataPacket[]>(\"SELECT id FROM attendance_shifts WHERE TRIM(code) = ? AND COALESCE(status,'Active') <> 'Archived' LIMIT 1\", [shiftCode])",
+    "sql": "\"SELECT id FROM attendance_shifts WHERE TRIM(code) = ? AND COALESCE(status,'Active') <> 'Archived' LIMIT 1\"",
+    "args": "[shiftCode]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 79,
+    "start": 3932,
+    "end": 4933,
+    "call": "db.query(\n      `INSERT INTO attendance_shifts (\n        id, code, name, description, shiftType, startTime, endTime, crossMidnight,\n        totalHours, minWorkingHours, fullDayHours, halfDayHours,\n        breakDuration, breakType, earliestIn, latestOut,\n        graceLate, graceEarly, overtimeEligible, overtimeStart,\n        weeklyWorkingDays, weeklyOffDays, holidayRule, applicableEmploymentTypes, status\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,\n      [\n        id, shiftCode, shiftName, description, shiftType, startTime, endTime, shiftCrossesMidnight(startTime, endTime, crossMidnight),\n        scheduledHours, minWorkingHours, fullDayHours, halfDayHours,\n        breakDuration, breakType, earliestIn, latestOut,\n        graceLate, graceEarly, overtimeEligible, overtimeStart,\n        JSON.stringify(weeklyWorkingDays || []), JSON.stringify(weeklyOffDays || []), holidayRule, JSON.stringify(applicableEmploymentTypes || []), status\n      ]\n    )",
+    "sql": "`INSERT INTO attendance_shifts (\n        id, code, name, description, shiftType, startTime, endTime, crossMidnight,\n        totalHours, minWorkingHours, fullDayHours, halfDayHours,\n        breakDuration, breakType, earliestIn, latestOut,\n        graceLate, graceEarly, overtimeEligible, overtimeStart,\n        weeklyWorkingDays, weeklyOffDays, holidayRule, applicableEmploymentTypes, status\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`",
+    "args": "[\n        id, shiftCode, shiftName, description, shiftType, startTime, endTime, shiftCrossesMidnight(startTime, endTime, crossMidnight),\n        scheduledHours, minWorkingHours, fullDayHours, halfDayHours,\n        breakDuration, breakType, earliestIn, latestOut,\n        graceLate, graceEarly, overtimeEligible, overtimeStart,\n        JSON.stringify(weeklyWorkingDays || []), JSON.stringify(weeklyOffDays || []), holidayRule, JSON.stringify(applicableEmploymentTypes || []), status\n      ]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 96,
+    "start": 4964,
+    "end": 5043,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM attendance_shifts WHERE id = ?', [id])",
+    "sql": "'SELECT * FROM attendance_shifts WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 107,
+    "start": 5452,
+    "end": 5574,
+    "call": "db.query<RowDataPacket[]>(\"SELECT id FROM attendance_shifts WHERE id=? AND COALESCE(status,'Active') <> 'Archived'\", [id])",
+    "sql": "\"SELECT id FROM attendance_shifts WHERE id=? AND COALESCE(status,'Active') <> 'Archived'\"",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 122,
+    "start": 6322,
+    "end": 7319,
+    "call": "db.query(\n      `UPDATE attendance_shifts SET\n        name=?, description=?, shiftType=?, startTime=?, endTime=?, crossMidnight=?,\n        totalHours=?, minWorkingHours=?, fullDayHours=?, halfDayHours=?,\n        breakDuration=?, breakType=?, earliestIn=?, latestOut=?,\n        graceLate=?, graceEarly=?, overtimeEligible=?, overtimeStart=?,\n        weeklyWorkingDays=?, weeklyOffDays=?, holidayRule=?, applicableEmploymentTypes=?, status=?\n       WHERE id=? AND COALESCE(status,'Active') <> 'Archived'`,\n      [\n        name, description, shiftType, startTime, endTime, shiftCrossesMidnight(startTime, endTime, crossMidnight),\n        scheduledHours, minWorkingHours, fullDayHours, halfDayHours,\n        breakDuration, breakType, earliestIn, latestOut,\n        graceLate, graceEarly, overtimeEligible, overtimeStart,\n        JSON.stringify(weeklyWorkingDays || []), JSON.stringify(weeklyOffDays || []), holidayRule, JSON.stringify(applicableEmploymentTypes || []), status,\n        id\n      ]\n    )",
+    "sql": "`UPDATE attendance_shifts SET\n        name=?, description=?, shiftType=?, startTime=?, endTime=?, crossMidnight=?,\n        totalHours=?, minWorkingHours=?, fullDayHours=?, halfDayHours=?,\n        breakDuration=?, breakType=?, earliestIn=?, latestOut=?,\n        graceLate=?, graceEarly=?, overtimeEligible=?, overtimeStart=?,\n        weeklyWorkingDays=?, weeklyOffDays=?, holidayRule=?, applicableEmploymentTypes=?, status=?\n       WHERE id=? AND COALESCE(status,'Active') <> 'Archived'`",
+    "args": "[\n        name, description, shiftType, startTime, endTime, shiftCrossesMidnight(startTime, endTime, crossMidnight),\n        scheduledHours, minWorkingHours, fullDayHours, halfDayHours,\n        breakDuration, breakType, earliestIn, latestOut,\n        graceLate, graceEarly, overtimeEligible, overtimeStart,\n        JSON.stringify(weeklyWorkingDays || []), JSON.stringify(weeklyOffDays || []), holidayRule, JSON.stringify(applicableEmploymentTypes || []), status,\n        id\n      ]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 155,
+    "start": 8070,
+    "end": 8190,
+    "call": "connection.query<RowDataPacket[]>('SELECT id,code,status FROM attendance_shifts WHERE id=? FOR UPDATE', [req.params.id])",
+    "sql": "'SELECT id,code,status FROM attendance_shifts WHERE id=? FOR UPDATE'",
+    "args": "[req.params.id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 165,
+    "start": 8559,
+    "end": 8738,
+    "call": "connection.query(\"UPDATE attendance_shifts SET status='Archived',updatedAt=NOW() WHERE LOWER(TRIM(code))=LOWER(TRIM(?)) AND COALESCE(status,'Active')<>'Archived'\", [rows[0].code])",
+    "sql": "\"UPDATE attendance_shifts SET status='Archived',updatedAt=NOW() WHERE LOWER(TRIM(code))=LOWER(TRIM(?)) AND COALESCE(status,'Active')<>'Archived'\"",
+    "args": "[rows[0].code]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 167,
+    "start": 8765,
+    "end": 8872,
+    "call": "connection.query(\"UPDATE attendance_shifts SET status='Archived',updatedAt=NOW() WHERE id=?\", [rows[0].id])",
+    "sql": "\"UPDATE attendance_shifts SET status='Archived',updatedAt=NOW() WHERE id=?\"",
+    "args": "[rows[0].id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 186,
+    "start": 9526,
+    "end": 9870,
+    "call": "db.query<RowDataPacket[]>(`SELECT g.*,\n      (SELECT COUNT(DISTINCT a.employeeId) FROM attendance_roster_assignments a\n       JOIN employee_information_employees e ON e.id=a.employeeId\n       WHERE (a.groupId=g.id OR a.rosterGroupId=g.id) AND a.status='Active') AS employeeCount\n      FROM attendance_roster_groups g ORDER BY g.createdAt DESC`)",
+    "sql": "`SELECT g.*,\n      (SELECT COUNT(DISTINCT a.employeeId) FROM attendance_roster_assignments a\n       JOIN employee_information_employees e ON e.id=a.employeeId\n       WHERE (a.groupId=g.id OR a.rosterGroupId=g.id) AND a.status='Active') AS employeeCount\n      FROM attendance_roster_groups g ORDER BY g.createdAt DESC`"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 197,
+    "start": 10277,
+    "end": 10579,
+    "call": "db.query<RowDataPacket[]>(\n        `SELECT s.*, m.isDefault, m.displayOrder \n         FROM attendance_roster_group_shifts m \n         JOIN attendance_shifts s ON m.shiftId = s.id \n         WHERE m.groupId = ? OR m.rosterGroupId = ? ORDER BY m.displayOrder ASC`,\n        [rows[i].id, rows[i].id]\n      )",
+    "sql": "`SELECT s.*, m.isDefault, m.displayOrder \n         FROM attendance_roster_group_shifts m \n         JOIN attendance_shifts s ON m.shiftId = s.id \n         WHERE m.groupId = ? OR m.rosterGroupId = ? ORDER BY m.displayOrder ASC`",
+    "args": "[rows[i].id, rows[i].id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 205,
+    "start": 10651,
+    "end": 10861,
+    "call": "db.query<RowDataPacket[]>(\n        `SELECT DATE_FORMAT(date, '%Y-%m-%d') AS date, shiftId, isOffDay\n         FROM attendance_roster_calendars WHERE rosterGroupId = ? ORDER BY date`,\n        [rows[i].id]\n      )",
+    "sql": "`SELECT DATE_FORMAT(date, '%Y-%m-%d') AS date, shiftId, isOffDay\n         FROM attendance_roster_calendars WHERE rosterGroupId = ? ORDER BY date`",
+    "args": "[rows[i].id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 237,
+    "start": 12076,
+    "end": 12805,
+    "call": "connection.query(\n        `INSERT INTO attendance_roster_groups (\n          id, code, name, description, departmentId, branchId, effectiveStartDate, effectiveEndDate,\n          rosterCycle, applicableEmploymentTypes, minRestHours, maxConsecutiveDays, maxWeeklyHours, lockPeriod, status\n        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,\n        [\n          id, rosterCode, String(name).trim(), description || null, departmentId || null, branchId || null, effectiveStartDate || null, effectiveEndDate || null,\n          rosterCycle || 'Monthly', JSON.stringify(applicableEmploymentTypes || []), minRestHours ?? 8, maxConsecutiveDays ?? 6, maxWeeklyHours ?? 48, lockPeriod ?? null, status || 'Draft'\n        ]\n      )",
+    "sql": "`INSERT INTO attendance_roster_groups (\n          id, code, name, description, departmentId, branchId, effectiveStartDate, effectiveEndDate,\n          rosterCycle, applicableEmploymentTypes, minRestHours, maxConsecutiveDays, maxWeeklyHours, lockPeriod, status\n        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`",
+    "args": "[\n          id, rosterCode, String(name).trim(), description || null, departmentId || null, branchId || null, effectiveStartDate || null, effectiveEndDate || null,\n          rosterCycle || 'Monthly', JSON.stringify(applicableEmploymentTypes || []), minRestHours ?? 8, maxConsecutiveDays ?? 6, maxWeeklyHours ?? 48, lockPeriod ?? null, status || 'Draft'\n        ]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 249,
+    "start": 12902,
+    "end": 13163,
+    "call": "connection.query(\n            'INSERT INTO attendance_roster_group_shifts (id, groupId, rosterGroupId, shiftId, isDefault, displayOrder) VALUES (?, ?, ?, ?, ?, ?)',\n            [uuidv4(), id, id, s.shiftId, s.isDefault || false, s.displayOrder || 0]\n          )",
+    "sql": "'INSERT INTO attendance_roster_group_shifts (id, groupId, rosterGroupId, shiftId, isDefault, displayOrder) VALUES (?, ?, ?, ?, ?, ?)'",
+    "args": "[uuidv4(), id, id, s.shiftId, s.isDefault || false, s.displayOrder || 0]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 260,
+    "start": 13537,
+    "end": 13811,
+    "call": "connection.query(\n            'INSERT INTO attendance_roster_calendars (id, rosterGroupId, date, shiftId, isOffDay) VALUES (?, ?, ?, ?, ?)',\n            [uuidv4(), id, assignment.date, assignment.isOffDay ? null : assignment.shiftId, assignment.isOffDay ? 1 : 0]\n          )",
+    "sql": "'INSERT INTO attendance_roster_calendars (id, rosterGroupId, date, shiftId, isOffDay) VALUES (?, ?, ?, ?, ?)'",
+    "args": "[uuidv4(), id, assignment.date, assignment.isOffDay ? null : assignment.shiftId, assignment.isOffDay ? 1 : 0]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 292,
+    "start": 14908,
+    "end": 15012,
+    "call": "connection.query<RowDataPacket[]>('SELECT id FROM attendance_roster_groups WHERE id=? FOR UPDATE', [id])",
+    "sql": "'SELECT id FROM attendance_roster_groups WHERE id=? FOR UPDATE'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 295,
+    "start": 15217,
+    "end": 15358,
+    "call": "connection.query<RowDataPacket[]>('SELECT shiftId,isDefault FROM attendance_roster_group_shifts WHERE groupId=? OR rosterGroupId=?', [id,id])",
+    "sql": "'SELECT shiftId,isDefault FROM attendance_roster_group_shifts WHERE groupId=? OR rosterGroupId=?'",
+    "args": "[id,id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 302,
+    "start": 15752,
+    "end": 15917,
+    "call": "connection.query<RowDataPacket[]>('SELECT DATE_FORMAT(date, \\'%Y-%m-%d\\') date, shiftId FROM attendance_roster_calendars WHERE rosterGroupId=? AND isOffDay=0', [id])",
+    "sql": "'SELECT DATE_FORMAT(date, \\'%Y-%m-%d\\') date, shiftId FROM attendance_roster_calendars WHERE rosterGroupId=? AND isOffDay=0'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 308,
+    "start": 16271,
+    "end": 16911,
+    "call": "connection.query(\n        `UPDATE attendance_roster_groups SET\n          name=?, description=?, departmentId=?, branchId=?, effectiveStartDate=?, effectiveEndDate=?,\n          rosterCycle=?, applicableEmploymentTypes=?, minRestHours=?, maxConsecutiveDays=?, maxWeeklyHours=?, lockPeriod=?, status=?\n         WHERE id=?`,\n        [\n          name, description, departmentId || null, branchId || null, effectiveStartDate || null, effectiveEndDate || null,\n          rosterCycle, JSON.stringify(applicableEmploymentTypes || []), minRestHours, maxConsecutiveDays, maxWeeklyHours ?? 48, lockPeriod ?? null, status,\n          id\n        ]\n      )",
+    "sql": "`UPDATE attendance_roster_groups SET\n          name=?, description=?, departmentId=?, branchId=?, effectiveStartDate=?, effectiveEndDate=?,\n          rosterCycle=?, applicableEmploymentTypes=?, minRestHours=?, maxConsecutiveDays=?, maxWeeklyHours=?, lockPeriod=?, status=?\n         WHERE id=?`",
+    "args": "[\n          name, description, departmentId || null, branchId || null, effectiveStartDate || null, effectiveEndDate || null,\n          rosterCycle, JSON.stringify(applicableEmploymentTypes || []), minRestHours, maxConsecutiveDays, maxWeeklyHours ?? 48, lockPeriod ?? null, status,\n          id\n        ]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 320,
+    "start": 16947,
+    "end": 17058,
+    "call": "connection.query('DELETE FROM attendance_roster_group_shifts WHERE groupId = ? OR rosterGroupId = ?', [id, id])",
+    "sql": "'DELETE FROM attendance_roster_group_shifts WHERE groupId = ? OR rosterGroupId = ?'",
+    "args": "[id, id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 322,
+    "start": 17110,
+    "end": 17371,
+    "call": "connection.query(\n            'INSERT INTO attendance_roster_group_shifts (id, groupId, rosterGroupId, shiftId, isDefault, displayOrder) VALUES (?, ?, ?, ?, ?, ?)',\n            [uuidv4(), id, id, s.shiftId, s.isDefault || false, s.displayOrder || 0]\n          )",
+    "sql": "'INSERT INTO attendance_roster_group_shifts (id, groupId, rosterGroupId, shiftId, isDefault, displayOrder) VALUES (?, ?, ?, ?, ?, ?)'",
+    "args": "[uuidv4(), id, id, s.shiftId, s.isDefault || false, s.displayOrder || 0]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 328,
+    "start": 17464,
+    "end": 17658,
+    "call": "connection.query(\"UPDATE attendance_roster_assignments SET shiftId=?, groupId=?, rosterGroupId=? WHERE COALESCE(groupId,rosterGroupId)=? AND status='Active'\", [defaultShift.shiftId, id, id, id])",
+    "sql": "\"UPDATE attendance_roster_assignments SET shiftId=?, groupId=?, rosterGroupId=? WHERE COALESCE(groupId,rosterGroupId)=? AND status='Active'\"",
+    "args": "[defaultShift.shiftId, id, id, id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 335,
+    "start": 17999,
+    "end": 18118,
+    "call": "connection.query('DELETE FROM attendance_roster_calendars WHERE rosterGroupId = ? AND date = ?', [id, assignment.date])",
+    "sql": "'DELETE FROM attendance_roster_calendars WHERE rosterGroupId = ? AND date = ?'",
+    "args": "[id, assignment.date]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 336,
+    "start": 18159,
+    "end": 18433,
+    "call": "connection.query(\n            'INSERT INTO attendance_roster_calendars (id, rosterGroupId, date, shiftId, isOffDay) VALUES (?, ?, ?, ?, ?)',\n            [uuidv4(), id, assignment.date, assignment.isOffDay ? null : assignment.shiftId, assignment.isOffDay ? 1 : 0]\n          )",
+    "sql": "'INSERT INTO attendance_roster_calendars (id, rosterGroupId, date, shiftId, isOffDay) VALUES (?, ?, ?, ?, ?)'",
+    "args": "[uuidv4(), id, assignment.date, assignment.isOffDay ? null : assignment.shiftId, assignment.isOffDay ? 1 : 0]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 368,
+    "start": 19617,
+    "end": 19733,
+    "call": "connection.query<RowDataPacket[]>(\n      'SELECT id,name FROM attendance_roster_groups WHERE id=? FOR UPDATE', [id])",
+    "sql": "'SELECT id,name FROM attendance_roster_groups WHERE id=? FOR UPDATE'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 374,
+    "start": 19964,
+    "end": 20118,
+    "call": "connection.query<RowDataPacket[]>(\n      'SELECT id,employeeId FROM attendance_roster_assignments WHERE groupId=? OR rosterGroupId=? FOR UPDATE', [id,id])",
+    "sql": "'SELECT id,employeeId FROM attendance_roster_assignments WHERE groupId=? OR rosterGroupId=? FOR UPDATE'",
+    "args": "[id,id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 376,
+    "start": 20130,
+    "end": 20235,
+    "call": "connection.query('DELETE FROM attendance_roster_assignments WHERE groupId=? OR rosterGroupId=?', [id,id])",
+    "sql": "'DELETE FROM attendance_roster_assignments WHERE groupId=? OR rosterGroupId=?'",
+    "args": "[id,id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 377,
+    "start": 20247,
+    "end": 20334,
+    "call": "connection.query('DELETE FROM attendance_roster_calendars WHERE rosterGroupId=?', [id])",
+    "sql": "'DELETE FROM attendance_roster_calendars WHERE rosterGroupId=?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 378,
+    "start": 20346,
+    "end": 20452,
+    "call": "connection.query('DELETE FROM attendance_roster_group_shifts WHERE groupId=? OR rosterGroupId=?', [id,id])",
+    "sql": "'DELETE FROM attendance_roster_group_shifts WHERE groupId=? OR rosterGroupId=?'",
+    "args": "[id,id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 379,
+    "start": 20464,
+    "end": 20537,
+    "call": "connection.query('DELETE FROM attendance_roster_groups WHERE id=?', [id])",
+    "sql": "'DELETE FROM attendance_roster_groups WHERE id=?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 413,
+    "start": 22256,
+    "end": 22295,
+    "call": "db.query<RowDataPacket[]>(query, [ids])",
+    "sql": "query",
+    "args": "[ids]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 447,
+    "start": 24081,
+    "end": 24298,
+    "call": "connection.query<RowDataPacket[]>(\n          \"SELECT id,name FROM eim_structures WHERE id=? AND structureType='Department' AND COALESCE(isActive,1)=1 AND COALESCE(status,'Active')='Active' FOR UPDATE\", [departmentId])",
+    "sql": "\"SELECT id,name FROM eim_structures WHERE id=? AND structureType='Department' AND COALESCE(isActive,1)=1 AND COALESCE(status,'Active')='Active' FOR UPDATE\"",
+    "args": "[departmentId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 452,
+    "start": 24569,
+    "end": 24922,
+    "call": "connection.query<RowDataPacket[]>(`SELECT e.id\n          FROM employee_information_employees e\n          LEFT JOIN employee_information_workstation_details w ON w.employeeId=e.id\n          WHERE COALESCE(NULLIF(w.departmentId,''),e.departmentId)=?\n            AND e.status='Active' AND COALESCE(e.isActive,1)=1 ORDER BY e.id FOR UPDATE`, [departmentId])",
+    "sql": "`SELECT e.id\n          FROM employee_information_employees e\n          LEFT JOIN employee_information_workstation_details w ON w.employeeId=e.id\n          WHERE COALESCE(NULLIF(w.departmentId,''),e.departmentId)=?\n            AND e.status='Active' AND COALESCE(e.isActive,1)=1 ORDER BY e.id FOR UPDATE`",
+    "args": "[departmentId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 502,
+    "start": 26999,
+    "end": 27683,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT \n        r.*, \n        e.employeeNo, \n        COALESCE(NULLIF(TRIM(pd.fullName), ''), NULLIF(TRIM(CONCAT(COALESCE(pd.firstName, ''), ' ', COALESCE(pd.lastName, ''))), ''), u.name, 'Unknown Employee') as employeeName, \n        s.name as shiftName \n      FROM attendance_records r \n      LEFT JOIN employee_information_employees e ON r.employeeId = e.id \n      LEFT JOIN employee_information_personal_details pd ON e.id = pd.employeeId \n      LEFT JOIN users u ON e.userId = u.id\n      LEFT JOIN attendance_shifts s ON r.shiftId = s.id\n      WHERE r.employeeId IN (?) AND r.date BETWEEN ? AND ?\n      ORDER BY r.date DESC\n    `, [ids, from, to])",
+    "sql": "`\n      SELECT \n        r.*, \n        e.employeeNo, \n        COALESCE(NULLIF(TRIM(pd.fullName), ''), NULLIF(TRIM(CONCAT(COALESCE(pd.firstName, ''), ' ', COALESCE(pd.lastName, ''))), ''), u.name, 'Unknown Employee') as employeeName, \n        s.name as shiftName \n      FROM attendance_records r \n      LEFT JOIN employee_information_employees e ON r.employeeId = e.id \n      LEFT JOIN employee_information_personal_details pd ON e.id = pd.employeeId \n      LEFT JOIN users u ON e.userId = u.id\n      LEFT JOIN attendance_shifts s ON r.shiftId = s.id\n      WHERE r.employeeId IN (?) AND r.date BETWEEN ? AND ?\n      ORDER BY r.date DESC\n    `",
+    "args": "[ids, from, to]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 526,
+    "start": 28067,
+    "end": 28230,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM attendance_exceptions WHERE employeeId IN (?) ORDER BY createdAt DESC', [access.visibleIds.length?access.visibleIds:['']])",
+    "sql": "'SELECT * FROM attendance_exceptions WHERE employeeId IN (?) ORDER BY createdAt DESC'",
+    "args": "[access.visibleIds.length?access.visibleIds:['']]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 536,
+    "start": 28552,
+    "end": 28641,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM attendance_roster_calendars ORDER BY date DESC')",
+    "sql": "'SELECT * FROM attendance_roster_calendars ORDER BY date DESC'"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 552,
+    "start": 29228,
+    "end": 29337,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 556,
+    "start": 29555,
+    "end": 29756,
+    "call": "db.query<RowDataPacket[]>(\n      'SELECT id, timestamp, logType, source FROM attendance_raw_logs WHERE employeeId = ? AND DATE(timestamp) = ? ORDER BY timestamp ASC',\n      [employeeId, todayStr]\n    )",
+    "sql": "'SELECT id, timestamp, logType, source FROM attendance_raw_logs WHERE employeeId = ? AND DATE(timestamp) = ? ORDER BY timestamp ASC'",
+    "args": "[employeeId, todayStr]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 578,
+    "start": 30613,
+    "end": 30778,
+    "call": "connection.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? AND isActive=1 AND status=\\'Active\\' LIMIT 1 FOR UPDATE', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? AND isActive=1 AND status=\\'Active\\' LIMIT 1 FOR UPDATE'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 584,
+    "start": 31032,
+    "end": 31238,
+    "call": "connection.query<RowDataPacket[]>(\n      'SELECT logType, timestamp FROM attendance_raw_logs WHERE employeeId = ? AND DATE(timestamp) = ? ORDER BY timestamp DESC LIMIT 1',\n      [employeeId, todayStr]\n    )",
+    "sql": "'SELECT logType, timestamp FROM attendance_raw_logs WHERE employeeId = ? AND DATE(timestamp) = ? ORDER BY timestamp DESC LIMIT 1'",
+    "args": "[employeeId, todayStr]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 603,
+    "start": 32243,
+    "end": 32481,
+    "call": "connection.query(\n      'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, location, createdAt) VALUES (?, ?, ?, ?, ?, ?, NOW())',\n      [logId, employeeId, now, logType, source || 'Web', location || null]\n    )",
+    "sql": "'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, location, createdAt) VALUES (?, ?, ?, ?, ?, ?, NOW())'",
+    "args": "[logId, employeeId, now, logType, source || 'Web', location || null]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 609,
+    "start": 32552,
+    "end": 32687,
+    "call": "connection.query<RowDataPacket[]>('SELECT * FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1', [employeeId, todayStr])",
+    "sql": "'SELECT * FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1'",
+    "args": "[employeeId, todayStr]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 613,
+    "start": 32805,
+    "end": 33013,
+    "call": "connection.query('INSERT INTO attendance_records (id, employeeId, date, inTime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())', \n         [uuidv4(), employeeId, todayStr, now, 'Present'])",
+    "sql": "'INSERT INTO attendance_records (id, employeeId, date, inTime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())'",
+    "args": "[uuidv4(), employeeId, todayStr, now, 'Present']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 616,
+    "start": 33077,
+    "end": 33220,
+    "call": "connection.query('UPDATE attendance_records SET inTime = ?, status = \\'Present\\', updatedAt = NOW() WHERE id = ?', [now, existingRecord[0].id])",
+    "sql": "'UPDATE attendance_records SET inTime = ?, status = \\'Present\\', updatedAt = NOW() WHERE id = ?'",
+    "args": "[now, existingRecord[0].id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 624,
+    "start": 33603,
+    "end": 33854,
+    "call": "connection.query('UPDATE attendance_records SET outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, updatedAt = NOW() WHERE id = ?', \n         [now, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), existingRecord[0].id])",
+    "sql": "'UPDATE attendance_records SET outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, updatedAt = NOW() WHERE id = ?'",
+    "args": "[now, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), existingRecord[0].id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 641,
+    "start": 34529,
+    "end": 34638,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 644,
+    "start": 34824,
+    "end": 34939,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM attendance_records WHERE employeeId = ? ORDER BY date DESC', [employeeId])",
+    "sql": "'SELECT * FROM attendance_records WHERE employeeId = ? ORDER BY date DESC'",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 658,
+    "start": 35608,
+    "end": 35717,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 661,
+    "start": 35904,
+    "end": 36028,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1', [employeeId, date])",
+    "sql": "'SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1'",
+    "args": "[employeeId, date]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 666,
+    "start": 36410,
+    "end": 36591,
+    "call": "db.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), employeeId, inDateTime, 'In', 'Manual'])",
+    "sql": "'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())'",
+    "args": "[uuidv4(), employeeId, inDateTime, 'In', 'Manual']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 667,
+    "start": 36603,
+    "end": 36786,
+    "call": "db.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), employeeId, outDateTime, 'Out', 'Manual'])",
+    "sql": "'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())'",
+    "args": "[uuidv4(), employeeId, outDateTime, 'Out', 'Manual']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 668,
+    "start": 36798,
+    "end": 37213,
+    "call": "db.query('INSERT INTO attendance_records (id, employeeId, date, inTime, outTime, totalHours, regularHours, overtimeHours, lateMinutes, earlyDepartureMinutes, isLate, status, isException, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())', [uuidv4(), employeeId, date, inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 0, 0, 0, 'Present', 0])",
+    "sql": "'INSERT INTO attendance_records (id, employeeId, date, inTime, outTime, totalHours, regularHours, overtimeHours, lateMinutes, earlyDepartureMinutes, isLate, status, isException, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'",
+    "args": "[uuidv4(), employeeId, date, inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 0, 0, 0, 'Present', 0]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 682,
+    "start": 37817,
+    "end": 37926,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 685,
+    "start": 38112,
+    "end": 38269,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM attendance_records WHERE employeeId = ? AND (id = ? OR date = ?) LIMIT 1', [employeeId, idOrDate, date || idOrDate])",
+    "sql": "'SELECT * FROM attendance_records WHERE employeeId = ? AND (id = ? OR date = ?) LIMIT 1'",
+    "args": "[employeeId, idOrDate, date || idOrDate]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 692,
+    "start": 38810,
+    "end": 39064,
+    "call": "db.query('UPDATE attendance_records SET inTime = ?, outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, updatedAt = NOW() WHERE id = ?', [inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), record.id])",
+    "sql": "'UPDATE attendance_records SET inTime = ?, outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, updatedAt = NOW() WHERE id = ?'",
+    "args": "[inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), record.id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 693,
+    "start": 39076,
+    "end": 39234,
+    "call": "db.query('UPDATE attendance_raw_logs SET timestamp = ? WHERE employeeId = ? AND DATE(timestamp) = ? AND logType = ?', [inDateTime, employeeId, dateStr, 'In'])",
+    "sql": "'UPDATE attendance_raw_logs SET timestamp = ? WHERE employeeId = ? AND DATE(timestamp) = ? AND logType = ?'",
+    "args": "[inDateTime, employeeId, dateStr, 'In']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 694,
+    "start": 39246,
+    "end": 39406,
+    "call": "db.query('UPDATE attendance_raw_logs SET timestamp = ? WHERE employeeId = ? AND DATE(timestamp) = ? AND logType = ?', [outDateTime, employeeId, dateStr, 'Out'])",
+    "sql": "'UPDATE attendance_raw_logs SET timestamp = ? WHERE employeeId = ? AND DATE(timestamp) = ? AND logType = ?'",
+    "args": "[outDateTime, employeeId, dateStr, 'Out']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 706,
+    "start": 39899,
+    "end": 40008,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 710,
+    "start": 40202,
+    "end": 40698,
+    "call": "db.query<RowDataPacket[]>(\n      `SELECT g.id, g.name, g.description, g.rosterCycle\n       FROM attendance_roster_assignments a\n       JOIN attendance_roster_groups g ON COALESCE(a.groupId, a.rosterGroupId) = g.id\n       WHERE a.employeeId = ? AND a.status = 'Active'\n         AND a.effectiveStartDate <= CURRENT_DATE()\n         AND (a.effectiveEndDate IS NULL OR a.effectiveEndDate >= CURRENT_DATE())\n       ORDER BY a.effectiveStartDate DESC, a.createdAt DESC LIMIT 1`,\n      [employeeId]\n    )",
+    "sql": "`SELECT g.id, g.name, g.description, g.rosterCycle\n       FROM attendance_roster_assignments a\n       JOIN attendance_roster_groups g ON COALESCE(a.groupId, a.rosterGroupId) = g.id\n       WHERE a.employeeId = ? AND a.status = 'Active'\n         AND a.effectiveStartDate <= CURRENT_DATE()\n         AND (a.effectiveEndDate IS NULL OR a.effectiveEndDate >= CURRENT_DATE())\n       ORDER BY a.effectiveStartDate DESC, a.createdAt DESC LIMIT 1`",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 727,
+    "start": 40936,
+    "end": 41228,
+    "call": "db.query<RowDataPacket[]>(\n      `SELECT s.*, m.isDefault, m.displayOrder \n       FROM attendance_roster_group_shifts m \n       JOIN attendance_shifts s ON m.shiftId = s.id \n       WHERE m.rosterGroupId = ? OR m.groupId = ? \n       ORDER BY m.displayOrder ASC`,\n      [groupId, groupId]\n    )",
+    "sql": "`SELECT s.*, m.isDefault, m.displayOrder \n       FROM attendance_roster_group_shifts m \n       JOIN attendance_shifts s ON m.shiftId = s.id \n       WHERE m.rosterGroupId = ? OR m.groupId = ? \n       ORDER BY m.displayOrder ASC`",
+    "args": "[groupId, groupId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 736,
+    "start": 41264,
+    "end": 41469,
+    "call": "db.query<RowDataPacket[]>(\n      `SELECT DATE_FORMAT(date, '%Y-%m-%d') as date, shiftId, isOffDay, isHoliday \n       FROM attendance_roster_calendars \n       WHERE rosterGroupId = ?`,\n      [groupId]\n    )",
+    "sql": "`SELECT DATE_FORMAT(date, '%Y-%m-%d') as date, shiftId, isOffDay, isHoliday \n       FROM attendance_roster_calendars \n       WHERE rosterGroupId = ?`",
+    "args": "[groupId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 782,
+    "start": 43363,
+    "end": 43472,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 785,
+    "start": 43666,
+    "end": 43968,
+    "call": "db.query<RowDataPacket[]>(\n      recordId\n        ? 'SELECT id FROM attendance_records WHERE id = ? AND employeeId = ? AND date = ? LIMIT 1'\n        : 'SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1',\n      recordId ? [recordId, employeeId, date] : [employeeId, date]\n    )",
+    "sql": "recordId\n        ? 'SELECT id FROM attendance_records WHERE id = ? AND employeeId = ? AND date = ? LIMIT 1'\n        : 'SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1'",
+    "args": "recordId ? [recordId, employeeId, date] : [employeeId, date]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 794,
+    "start": 44220,
+    "end": 44409,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM attendance_exceptions WHERE employeeId = ? AND date = ? AND exceptionType = \\'MISSED_PUNCH\\' AND status = \\'PENDING\\' LIMIT 1', [employeeId, date])",
+    "sql": "'SELECT id FROM attendance_exceptions WHERE employeeId = ? AND date = ? AND exceptionType = \\'MISSED_PUNCH\\' AND status = \\'PENDING\\' LIMIT 1'",
+    "args": "[employeeId, date]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 799,
+    "start": 44631,
+    "end": 44955,
+    "call": "db.query(\n      'INSERT INTO attendance_exceptions (id, employeeId, recordId, date, exceptionType, status, reason, requestedValue, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',\n      [uuidv4(), employeeId, existingRecords[0]?.id || null, date, 'MISSED_PUNCH', 'PENDING', reason, requestedValue]\n    )",
+    "sql": "'INSERT INTO attendance_exceptions (id, employeeId, recordId, date, exceptionType, status, reason, requestedValue, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'",
+    "args": "[uuidv4(), employeeId, existingRecords[0]?.id || null, date, 'MISSED_PUNCH', 'PENDING', reason, requestedValue]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 819,
+    "start": 45750,
+    "end": 46407,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT e.id, e.employeeId, e.date, e.exceptionType, e.status, e.reason, e.requestedValue, e.createdAt,\n             COALESCE(NULLIF(TRIM(CONCAT(COALESCE(pd.firstName,''),' ',COALESCE(pd.lastName,''))),''  ), u.name, 'Unknown') as employeeName,\n             emp.employeeNo\n      FROM attendance_exceptions e\n      JOIN employee_information_employees emp ON e.employeeId = emp.id\n      LEFT JOIN employee_information_personal_details pd ON emp.id = pd.employeeId\n      LEFT JOIN users u ON emp.userId = u.id\n      WHERE e.employeeId IN (?) AND e.exceptionType = 'MISSED_PUNCH'\n      ORDER BY e.createdAt DESC\n    `, [empIds])",
+    "sql": "`\n      SELECT e.id, e.employeeId, e.date, e.exceptionType, e.status, e.reason, e.requestedValue, e.createdAt,\n             COALESCE(NULLIF(TRIM(CONCAT(COALESCE(pd.firstName,''),' ',COALESCE(pd.lastName,''))),''  ), u.name, 'Unknown') as employeeName,\n             emp.employeeNo\n      FROM attendance_exceptions e\n      JOIN employee_information_employees emp ON e.employeeId = emp.id\n      LEFT JOIN employee_information_personal_details pd ON emp.id = pd.employeeId\n      LEFT JOIN users u ON emp.userId = u.id\n      WHERE e.employeeId IN (?) AND e.exceptionType = 'MISSED_PUNCH'\n      ORDER BY e.createdAt DESC\n    `",
+    "args": "[empIds]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 854,
+    "start": 47529,
+    "end": 47664,
+    "call": "connection.query<RowDataPacket[]>('SELECT * FROM attendance_exceptions WHERE id = ? AND status = \\'PENDING\\' LIMIT 1 FOR UPDATE', [id])",
+    "sql": "'SELECT * FROM attendance_exceptions WHERE id = ? AND status = \\'PENDING\\' LIMIT 1 FOR UPDATE'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 889,
+    "start": 49734,
+    "end": 50114,
+    "call": "connection.query<RowDataPacket[]>(\n          exc.recordId\n            ? 'SELECT id FROM attendance_records WHERE id = ? AND employeeId = ? AND date = ? LIMIT 1 FOR UPDATE'\n            : 'SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1 FOR UPDATE',\n          exc.recordId ? [exc.recordId, exc.employeeId, exc.date] : [exc.employeeId, exc.date]\n        )",
+    "sql": "exc.recordId\n            ? 'SELECT id FROM attendance_records WHERE id = ? AND employeeId = ? AND date = ? LIMIT 1 FOR UPDATE'\n            : 'SELECT id FROM attendance_records WHERE employeeId = ? AND date = ? LIMIT 1 FOR UPDATE'",
+    "args": "exc.recordId ? [exc.recordId, exc.employeeId, exc.date] : [exc.employeeId, exc.date]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 899,
+    "start": 50343,
+    "end": 50664,
+    "call": "connection.query('UPDATE attendance_records SET inTime = ?, outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, status = ?, isException = 1, updatedAt = NOW() WHERE id = ?', \n            [inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 'APPROVED', existing[0].id])",
+    "sql": "'UPDATE attendance_records SET inTime = ?, outTime = ?, totalHours = ?, regularHours = ?, overtimeHours = ?, status = ?, isException = 1, updatedAt = NOW() WHERE id = ?'",
+    "args": "[inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 'APPROVED', existing[0].id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 902,
+    "start": 50699,
+    "end": 50903,
+    "call": "connection.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), exc.employeeId, inDateTime, 'In', 'Manual (Approved)'])",
+    "sql": "'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())'",
+    "args": "[uuidv4(), exc.employeeId, inDateTime, 'In', 'Manual (Approved)']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 903,
+    "start": 50921,
+    "end": 51127,
+    "call": "connection.query('INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())', [uuidv4(), exc.employeeId, outDateTime, 'Out', 'Manual (Approved)'])",
+    "sql": "'INSERT INTO attendance_raw_logs (id, employeeId, timestamp, logType, source, createdAt) VALUES (?, ?, ?, ?, ?, NOW())'",
+    "args": "[uuidv4(), exc.employeeId, outDateTime, 'Out', 'Manual (Approved)']"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 904,
+    "start": 51145,
+    "end": 51590,
+    "call": "connection.query('INSERT INTO attendance_records (id, employeeId, date, inTime, outTime, totalHours, regularHours, overtimeHours, lateMinutes, earlyDepartureMinutes, isLate, status, isException, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())', \n            [recordId, exc.employeeId, exc.date, inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 0, 0, 0, 'APPROVED', 1])",
+    "sql": "'INSERT INTO attendance_records (id, employeeId, date, inTime, outTime, totalHours, regularHours, overtimeHours, lateMinutes, earlyDepartureMinutes, isLate, status, isException, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'",
+    "args": "[recordId, exc.employeeId, exc.date, inDateTime, outDateTime, totalHours, Math.min(totalHours, 9), Math.max(0, totalHours - 9), 0, 0, 0, 'APPROVED', 1]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 908,
+    "start": 51625,
+    "end": 51861,
+    "call": "connection.query('UPDATE attendance_exceptions SET status = ?, resolvedBy = ?, resolvedAt = NOW(), resolutionNotes = ?, recordId = ?, updatedAt = NOW() WHERE id = ?',\n          [status, managerId, resolutionNotes || null, recordId, id])",
+    "sql": "'UPDATE attendance_exceptions SET status = ?, resolvedBy = ?, resolvedAt = NOW(), resolutionNotes = ?, recordId = ?, updatedAt = NOW() WHERE id = ?'",
+    "args": "[status, managerId, resolutionNotes || null, recordId, id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 914,
+    "start": 51970,
+    "end": 52180,
+    "call": "connection.query('UPDATE attendance_exceptions SET status = ?, resolvedBy = ?, resolvedAt = NOW(), resolutionNotes = ?, updatedAt = NOW() WHERE id = ?',\n        [status, managerId, resolutionNotes || null, id])",
+    "sql": "'UPDATE attendance_exceptions SET status = ?, resolvedBy = ?, resolvedAt = NOW(), resolutionNotes = ?, updatedAt = NOW() WHERE id = ?'",
+    "args": "[status, managerId, resolutionNotes || null, id]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 935,
+    "start": 52798,
+    "end": 52907,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/attendance.controller.ts",
+    "line": 939,
+    "start": 53055,
+    "end": 53328,
+    "call": "db.query<RowDataPacket[]>(\n      `SELECT id, date, exceptionType, status, reason, requestedValue, resolutionNotes, resolvedAt, createdAt, resolvedBy\n       FROM attendance_exceptions \n       WHERE employeeId = ? AND exceptionType = 'MISSED_PUNCH'`,\n      [employeeId]\n    )",
+    "sql": "`SELECT id, date, exceptionType, status, reason, requestedValue, resolutionNotes, resolvedAt, createdAt, resolvedBy\n       FROM attendance_exceptions \n       WHERE employeeId = ? AND exceptionType = 'MISSED_PUNCH'`",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 15,
+    "start": 620,
+    "end": 767,
+    "call": "connection.query<RowDataPacket[]>(\n    \"SELECT id FROM attendance_roster_groups WHERE id=? AND status IN ('Active','Draft') FOR UPDATE\", [groupId])",
+    "sql": "\"SELECT id FROM attendance_roster_groups WHERE id=? AND status IN ('Active','Draft') FOR UPDATE\"",
+    "args": "[groupId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 18,
+    "start": 879,
+    "end": 1097,
+    "call": "connection.query<RowDataPacket[]>(\n    `SELECT s.id FROM attendance_roster_group_shifts m JOIN attendance_shifts s ON s.id=m.shiftId\n     WHERE (m.groupId=? OR m.rosterGroupId=?) AND m.isDefault=1`, [groupId, groupId])",
+    "sql": "`SELECT s.id FROM attendance_roster_group_shifts m JOIN attendance_shifts s ON s.id=m.shiftId\n     WHERE (m.groupId=? OR m.rosterGroupId=?) AND m.isDefault=1`",
+    "args": "[groupId, groupId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 31,
+    "start": 1792,
+    "end": 1962,
+    "call": "connection.query<RowDataPacket[]>(\n    \"SELECT id FROM employee_information_employees WHERE id=? AND status='Active' AND COALESCE(isActive,1)=1 FOR UPDATE\", [employeeId])",
+    "sql": "\"SELECT id FROM employee_information_employees WHERE id=? AND status='Active' AND COALESCE(isActive,1)=1 FOR UPDATE\"",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 34,
+    "start": 2087,
+    "end": 2257,
+    "call": "connection.query<RowDataPacket[]>(\n    \"SELECT id, effectiveStartDate FROM attendance_roster_assignments WHERE employeeId=? AND status='Active' FOR UPDATE\", [employeeId])",
+    "sql": "\"SELECT id, effectiveStartDate FROM attendance_roster_assignments WHERE employeeId=? AND status='Active' FOR UPDATE\"",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 39,
+    "start": 2487,
+    "end": 2877,
+    "call": "connection.query(\n    `UPDATE attendance_roster_assignments SET status='Inactive',\n     effectiveEndDate=GREATEST(COALESCE(effectiveStartDate,effectiveFrom,?),DATE_SUB(?,INTERVAL 1 DAY)),\n     effectiveTo=GREATEST(COALESCE(effectiveStartDate,effectiveFrom,?),DATE_SUB(?,INTERVAL 1 DAY)),updatedAt=NOW()\n     WHERE employeeId=? AND status='Active'`, [start, start, start, start, employeeId])",
+    "sql": "`UPDATE attendance_roster_assignments SET status='Inactive',\n     effectiveEndDate=GREATEST(COALESCE(effectiveStartDate,effectiveFrom,?),DATE_SUB(?,INTERVAL 1 DAY)),\n     effectiveTo=GREATEST(COALESCE(effectiveStartDate,effectiveFrom,?),DATE_SUB(?,INTERVAL 1 DAY)),updatedAt=NOW()\n     WHERE employeeId=? AND status='Active'`",
+    "args": "[start, start, start, start, employeeId]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 45,
+    "start": 2914,
+    "end": 3226,
+    "call": "connection.query(\n    `INSERT INTO attendance_roster_assignments\n     (id,employeeId,groupId,rosterGroupId,shiftId,effectiveStartDate,effectiveEndDate,effectiveFrom,effectiveTo,status)\n     VALUES (?,?,?,?,?,?,?,?,?,'Active')`, [id, employeeId, groupId, groupId, shiftId, start, end || null, start, end || null])",
+    "sql": "`INSERT INTO attendance_roster_assignments\n     (id,employeeId,groupId,rosterGroupId,shiftId,effectiveStartDate,effectiveEndDate,effectiveFrom,effectiveTo,status)\n     VALUES (?,?,?,?,?,?,?,?,?,'Active')`",
+    "args": "[id, employeeId, groupId, groupId, shiftId, start, end || null, start, end || null]"
+  },
+  {
+    "p": "backend/src/modules/attendance/roster.service.ts",
+    "line": 58,
+    "start": 3898,
+    "end": 3997,
+    "call": "connection.query<RowDataPacket[]>('SELECT id,status FROM attendance_shifts WHERE id IN (?)', [ids])",
+    "sql": "'SELECT id,status FROM attendance_shifts WHERE id IN (?)'",
+    "args": "[ids]"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 9,
+    "start": 285,
+    "end": 365,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM calendargroup ORDER BY createdAt DESC')",
+    "sql": "'SELECT * FROM calendargroup ORDER BY createdAt DESC'"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 22,
+    "start": 808,
+    "end": 894,
+    "call": "db.query('UPDATE calendargroup SET isCompanyCalendar = 0 WHERE isCompanyCalendar = 1')",
+    "sql": "'UPDATE calendargroup SET isCompanyCalendar = 0 WHERE isCompanyCalendar = 1'"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 26,
+    "start": 947,
+    "end": 1277,
+    "call": "db.query(`\n        INSERT INTO calendargroup (id, displayName, description, isCompanyCalendar, weekendConfiguration, createdAt, updatedAt)\n        VALUES (?, ?, ?, ?, ?, NOW(), NOW())\n      `, [newId, displayName, description || null, isCompanyCalendar ? 1 : 0, weekendConfiguration ? JSON.stringify(weekendConfiguration) : null])",
+    "sql": "`\n        INSERT INTO calendargroup (id, displayName, description, isCompanyCalendar, weekendConfiguration, createdAt, updatedAt)\n        VALUES (?, ?, ?, ?, ?, NOW(), NOW())\n      `",
+    "args": "[newId, displayName, description || null, isCompanyCalendar ? 1 : 0, weekendConfiguration ? JSON.stringify(weekendConfiguration) : null]"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 31,
+    "start": 1313,
+    "end": 1391,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM calendargroup WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM calendargroup WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 45,
+    "start": 1865,
+    "end": 1969,
+    "call": "db.query('UPDATE calendargroup SET isCompanyCalendar = 0 WHERE isCompanyCalendar = 1 AND id != ?', [id])",
+    "sql": "'UPDATE calendargroup SET isCompanyCalendar = 0 WHERE isCompanyCalendar = 1 AND id != ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 48,
+    "start": 1998,
+    "end": 2307,
+    "call": "db.query(`\n        UPDATE calendargroup SET displayName = ?, description = ?, isCompanyCalendar = ?, weekendConfiguration = ?, updatedAt = NOW()\n        WHERE id = ?\n      `, [displayName, description || null, isCompanyCalendar ? 1 : 0, weekendConfiguration ? JSON.stringify(weekendConfiguration) : null, id])",
+    "sql": "`\n        UPDATE calendargroup SET displayName = ?, description = ?, isCompanyCalendar = ?, weekendConfiguration = ?, updatedAt = NOW()\n        WHERE id = ?\n      `",
+    "args": "[displayName, description || null, isCompanyCalendar ? 1 : 0, weekendConfiguration ? JSON.stringify(weekendConfiguration) : null, id]"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 53,
+    "start": 2343,
+    "end": 2418,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM calendargroup WHERE id = ?', [id])",
+    "sql": "'SELECT * FROM calendargroup WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/calendar-groups.controller.ts",
+    "line": 64,
+    "start": 2746,
+    "end": 2802,
+    "call": "db.query('DELETE FROM calendargroup WHERE id = ?', [id])",
+    "sql": "'DELETE FROM calendargroup WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/day-types.controller.ts",
+    "line": 9,
+    "start": 281,
+    "end": 355,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM daytype ORDER BY createdAt DESC')",
+    "sql": "'SELECT * FROM daytype ORDER BY createdAt DESC'"
+  },
+  {
+    "p": "backend/src/modules/leave/day-types.controller.ts",
+    "line": 22,
+    "start": 827,
+    "end": 1255,
+    "call": "db.query(`\n        INSERT INTO daytype (id, name, description, type, halfDaySegment, leaveAmount, displayColor, excludeInHolidayAsLeave, workflowStatus, createdAt, updatedAt)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n      `, [\n        newId, name, description, type, halfDaySegment || null, parseFloat(leaveAmount) || 0,\n        displayColor, excludeInHolidayAsLeave ? 1 : 0, workflowStatus || 'PENDING'\n      ])",
+    "sql": "`\n        INSERT INTO daytype (id, name, description, type, halfDaySegment, leaveAmount, displayColor, excludeInHolidayAsLeave, workflowStatus, createdAt, updatedAt)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n      `",
+    "args": "[\n        newId, name, description, type, halfDaySegment || null, parseFloat(leaveAmount) || 0,\n        displayColor, excludeInHolidayAsLeave ? 1 : 0, workflowStatus || 'PENDING'\n      ]"
+  },
+  {
+    "p": "backend/src/modules/leave/day-types.controller.ts",
+    "line": 30,
+    "start": 1291,
+    "end": 1363,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM daytype WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM daytype WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave/day-types.controller.ts",
+    "line": 43,
+    "start": 1840,
+    "end": 2251,
+    "call": "db.query(`\n        UPDATE daytype SET name = ?, description = ?, type = ?, halfDaySegment = ?, leaveAmount = ?, displayColor = ?, excludeInHolidayAsLeave = ?, workflowStatus = ?, updatedAt = NOW()\n        WHERE id = ?\n      `, [\n        name, description, type, halfDaySegment || null, parseFloat(leaveAmount) || 0,\n        displayColor, excludeInHolidayAsLeave ? 1 : 0, workflowStatus || 'PENDING', id\n      ])",
+    "sql": "`\n        UPDATE daytype SET name = ?, description = ?, type = ?, halfDaySegment = ?, leaveAmount = ?, displayColor = ?, excludeInHolidayAsLeave = ?, workflowStatus = ?, updatedAt = NOW()\n        WHERE id = ?\n      `",
+    "args": "[\n        name, description, type, halfDaySegment || null, parseFloat(leaveAmount) || 0,\n        displayColor, excludeInHolidayAsLeave ? 1 : 0, workflowStatus || 'PENDING', id\n      ]"
+  },
+  {
+    "p": "backend/src/modules/leave/day-types.controller.ts",
+    "line": 51,
+    "start": 2287,
+    "end": 2356,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM daytype WHERE id = ?', [id])",
+    "sql": "'SELECT * FROM daytype WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/day-types.controller.ts",
+    "line": 62,
+    "start": 2678,
+    "end": 2728,
+    "call": "db.query('DELETE FROM daytype WHERE id = ?', [id])",
+    "sql": "'DELETE FROM daytype WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 10,
+    "start": 336,
+    "end": 488,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM holidaycalendar WHERE year = ? AND calendarGroupId = ? LIMIT 1', [parseInt(year as string), groupId as string])",
+    "sql": "'SELECT * FROM holidaycalendar WHERE year = ? AND calendarGroupId = ? LIMIT 1'",
+    "args": "[parseInt(year as string), groupId as string]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 17,
+    "start": 641,
+    "end": 940,
+    "call": "db.query<RowDataPacket[]>(`\n        SELECT cd.*, dt.id as dt_id, dt.name as dt_name, dt.description as dt_desc, dt.type as dt_type, dt.displayColor as dt_color \n        FROM calendarday cd\n        JOIN daytype dt ON cd.dayTypeId = dt.id\n        WHERE cd.holidayCalendarId = ?\n      `, [calendar.id])",
+    "sql": "`\n        SELECT cd.*, dt.id as dt_id, dt.name as dt_name, dt.description as dt_desc, dt.type as dt_type, dt.displayColor as dt_color \n        FROM calendarday cd\n        JOIN daytype dt ON cd.dayTypeId = dt.id\n        WHERE cd.holidayCalendarId = ?\n      `",
+    "args": "[calendar.id]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 45,
+    "start": 1661,
+    "end": 1810,
+    "call": "connection.query<RowDataPacket[]>('SELECT id FROM holidaycalendar WHERE year = ? AND calendarGroupId = ? LIMIT 1', [parseInt(year), calendarGroupId])",
+    "sql": "'SELECT id FROM holidaycalendar WHERE year = ? AND calendarGroupId = ? LIMIT 1'",
+    "args": "[parseInt(year), calendarGroupId]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 50,
+    "start": 1950,
+    "end": 2125,
+    "call": "connection.query('INSERT INTO holidaycalendar (id, year, calendarGroupId, createdAt, updatedAt) VALUES (?, ?, ?, NOW(), NOW())', [calendarId, parseInt(year), calendarGroupId])",
+    "sql": "'INSERT INTO holidaycalendar (id, year, calendarGroupId, createdAt, updatedAt) VALUES (?, ?, ?, NOW(), NOW())'",
+    "args": "[calendarId, parseInt(year), calendarGroupId]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 53,
+    "start": 2152,
+    "end": 2237,
+    "call": "connection.query('DELETE FROM calendarday WHERE holidayCalendarId = ?', [calendarId])",
+    "sql": "'DELETE FROM calendarday WHERE holidayCalendarId = ?'",
+    "args": "[calendarId]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 57,
+    "start": 2331,
+    "end": 2526,
+    "call": "connection.query('INSERT INTO calendarday (id, date, holidayCalendarId, dayTypeId, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())', [uuidv4(), new Date(d.date), calendarId, d.dayTypeId])",
+    "sql": "'INSERT INTO calendarday (id, date, holidayCalendarId, dayTypeId, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())'",
+    "args": "[uuidv4(), new Date(d.date), calendarId, d.dayTypeId]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 69,
+    "start": 2758,
+    "end": 2851,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM holidaycalendar WHERE id = ? LIMIT 1', [calendarId])",
+    "sql": "'SELECT * FROM holidaycalendar WHERE id = ? LIMIT 1'",
+    "args": "[calendarId]"
+  },
+  {
+    "p": "backend/src/modules/leave/holiday-calendar.controller.ts",
+    "line": 71,
+    "start": 2932,
+    "end": 3230,
+    "call": "db.query<RowDataPacket[]>(`\n        SELECT cd.*, dt.id as dt_id, dt.name as dt_name, dt.description as dt_desc, dt.type as dt_type, dt.displayColor as dt_color \n        FROM calendarday cd\n        JOIN daytype dt ON cd.dayTypeId = dt.id\n        WHERE cd.holidayCalendarId = ?\n      `, [calendarId])",
+    "sql": "`\n        SELECT cd.*, dt.id as dt_id, dt.name as dt_name, dt.description as dt_desc, dt.type as dt_type, dt.displayColor as dt_color \n        FROM calendarday cd\n        JOIN daytype dt ON cd.dayTypeId = dt.id\n        WHERE cd.holidayCalendarId = ?\n      `",
+    "args": "[calendarId]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 8,
+    "start": 350,
+    "end": 458,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1', [employeeId])",
+    "sql": "'SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1'",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 17,
+    "start": 831,
+    "end": 923,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_years WHERE year = ? LIMIT 1', [currentYear])",
+    "sql": "'SELECT * FROM leave_years WHERE year = ? LIMIT 1'",
+    "args": "[currentYear]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 22,
+    "start": 1013,
+    "end": 1299,
+    "call": "db.query(`\n      INSERT INTO leave_years (id, year, displayName, startDate, endDate, isActive, createdAt, updatedAt)\n      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `, [newId, currentYear, currentYear.toString(), new Date(`${currentYear}-01-01`), new Date(`${currentYear}-12-31`), 1])",
+    "sql": "`\n      INSERT INTO leave_years (id, year, displayName, startDate, endDate, isActive, createdAt, updatedAt)\n      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `",
+    "args": "[newId, currentYear, currentYear.toString(), new Date(`${currentYear}-01-01`), new Date(`${currentYear}-12-31`), 1]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 26,
+    "start": 1331,
+    "end": 1407,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_years WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM leave_years WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 30,
+    "start": 1473,
+    "end": 1546,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE isActive = 1')",
+    "sql": "'SELECT * FROM leave_types WHERE isActive = 1'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 36,
+    "start": 1717,
+    "end": 1827,
+    "call": "db.query<RowDataPacket[]>('SELECT content, name FROM leave_rule_scripts WHERE name = ? LIMIT 1', [scriptName])",
+    "sql": "'SELECT content, name FROM leave_rule_scripts WHERE name = ? LIMIT 1'",
+    "args": "[scriptName]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 40,
+    "start": 1939,
+    "end": 2040,
+    "call": "db.query<RowDataPacket[]>('SELECT content, name FROM leave_rule_scripts WHERE isDefault = 1 LIMIT 1')",
+    "sql": "'SELECT content, name FROM leave_rule_scripts WHERE isDefault = 1 LIMIT 1'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 51,
+    "start": 2357,
+    "end": 2548,
+    "call": "db.query<RowDataPacket[]>(\n        'SELECT id FROM leave_entitlements WHERE userId = ? AND leaveTypeId = ? AND leaveYearId = ? LIMIT 1',\n        [employee.userId, lt.id, leaveYear.id]\n      )",
+    "sql": "'SELECT id FROM leave_entitlements WHERE userId = ? AND leaveTypeId = ? AND leaveYearId = ? LIMIT 1'",
+    "args": "[employee.userId, lt.id, leaveYear.id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 58,
+    "start": 2622,
+    "end": 2740,
+    "call": "db.query('UPDATE leave_entitlements SET totalDays = ?, updatedAt = NOW() WHERE id = ?', [calculatedDays, existing.id])",
+    "sql": "'UPDATE leave_entitlements SET totalDays = ?, updatedAt = NOW() WHERE id = ?'",
+    "args": "[calculatedDays, existing.id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 61,
+    "start": 2836,
+    "end": 3169,
+    "call": "db.query(`\n          INSERT INTO leave_entitlements (id, userId, leaveTypeId, leaveYearId, totalDays, usedDays, pendingDays, carryForwardDays, earnedDays, status, createdAt, updatedAt)\n          VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 'PROCESSED', NOW(), NOW())\n        `, [uuidv4(), employee.userId, lt.id, leaveYear.id, calculatedDays])",
+    "sql": "`\n          INSERT INTO leave_entitlements (id, userId, leaveTypeId, leaveYearId, totalDays, usedDays, pendingDays, carryForwardDays, earnedDays, status, createdAt, updatedAt)\n          VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 'PROCESSED', NOW(), NOW())\n        `",
+    "args": "[uuidv4(), employee.userId, lt.id, leaveYear.id, calculatedDays]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 93,
+    "start": 4119,
+    "end": 4216,
+    "call": "db.query<RowDataPacket[]>('SELECT id, name, role FROM users WHERE role IN (\"EMPLOYEE\", \"ADMIN\")')",
+    "sql": "'SELECT id, name, role FROM users WHERE role IN (\"EMPLOYEE\", \"ADMIN\")'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 94,
+    "start": 4251,
+    "end": 4312,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_entitlements')",
+    "sql": "'SELECT * FROM leave_entitlements'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 95,
+    "start": 4345,
+    "end": 4406,
+    "call": "db.query<RowDataPacket[]>('SELECT id, code FROM leave_types')",
+    "sql": "'SELECT id, code FROM leave_types'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 100,
+    "start": 4496,
+    "end": 4627,
+    "call": "db.query<RowDataPacket[]>('SELECT id, employeeNo, dateJoined FROM employee_information_employees WHERE userId = ? LIMIT 1', [u.id])",
+    "sql": "'SELECT id, employeeNo, dateJoined FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[u.id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.controller.ts",
+    "line": 109,
+    "start": 4840,
+    "end": 4939,
+    "call": "db.query<RowDataPacket[]>('SELECT joinedDate FROM invites WHERE invitedUserId = ? LIMIT 1', [u.id])",
+    "sql": "'SELECT joinedDate FROM invites WHERE invitedUserId = ? LIMIT 1'",
+    "args": "[u.id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 30,
+    "start": 1316,
+    "end": 1388,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types ORDER BY name ASC')",
+    "sql": "'SELECT * FROM leave_types ORDER BY name ASC'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 42,
+    "start": 1839,
+    "end": 2316,
+    "call": "db.query(`\n      INSERT INTO leave_types (\n        id, name, code, category, unit, paymentType, yearlyEntitlement, allowFullDay, allowHalfDays, showReason, requireAttachment, isActive, createdAt, updatedAt\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `, [\n      newId, name, code, category, unit, paymentType, parseFloat(yearlyEntitlement) || 0,\n      allowFullDay ?? 1, allowHalfDays ?? 1, showReason ?? 1, requireAttachment ?? 0, isActive ?? 1\n    ])",
+    "sql": "`\n      INSERT INTO leave_types (\n        id, name, code, category, unit, paymentType, yearlyEntitlement, allowFullDay, allowHalfDays, showReason, requireAttachment, isActive, createdAt, updatedAt\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `",
+    "args": "[\n      newId, name, code, category, unit, paymentType, parseFloat(yearlyEntitlement) || 0,\n      allowFullDay ?? 1, allowHalfDays ?? 1, showReason ?? 1, requireAttachment ?? 0, isActive ?? 1\n    ]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 51,
+    "start": 2344,
+    "end": 2420,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM leave_types WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 64,
+    "start": 2915,
+    "end": 3376,
+    "call": "db.query(`\n      UPDATE leave_types SET\n        name = ?, code = ?, category = ?, unit = ?, paymentType = ?, yearlyEntitlement = ?, allowFullDay = ?, allowHalfDays = ?, showReason = ?, requireAttachment = ?, isActive = ?, updatedAt = NOW()\n      WHERE id = ?\n    `, [\n      name, code, category, unit, paymentType, parseFloat(yearlyEntitlement) || 0,\n      allowFullDay ?? 1, allowHalfDays ?? 1, showReason ?? 1, requireAttachment ?? 0, isActive ?? 1, id\n    ])",
+    "sql": "`\n      UPDATE leave_types SET\n        name = ?, code = ?, category = ?, unit = ?, paymentType = ?, yearlyEntitlement = ?, allowFullDay = ?, allowHalfDays = ?, showReason = ?, requireAttachment = ?, isActive = ?, updatedAt = NOW()\n      WHERE id = ?\n    `",
+    "args": "[\n      name, code, category, unit, paymentType, parseFloat(yearlyEntitlement) || 0,\n      allowFullDay ?? 1, allowHalfDays ?? 1, showReason ?? 1, requireAttachment ?? 0, isActive ?? 1, id\n    ]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 73,
+    "start": 3404,
+    "end": 3477,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id = ?', [id])",
+    "sql": "'SELECT * FROM leave_types WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 89,
+    "start": 3945,
+    "end": 4022,
+    "call": "connection.query('DELETE FROM leave_group_types WHERE leaveTypeId = ?', [id])",
+    "sql": "'DELETE FROM leave_group_types WHERE leaveTypeId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 90,
+    "start": 4034,
+    "end": 4112,
+    "call": "connection.query('DELETE FROM leave_entitlements WHERE leaveTypeId = ?', [id])",
+    "sql": "'DELETE FROM leave_entitlements WHERE leaveTypeId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 91,
+    "start": 4124,
+    "end": 4197,
+    "call": "connection.query('DELETE FROM earned_leaves WHERE leaveTypeId = ?', [id])",
+    "sql": "'DELETE FROM earned_leaves WHERE leaveTypeId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 92,
+    "start": 4209,
+    "end": 4287,
+    "call": "connection.query('DELETE FROM leave_applications WHERE leaveTypeId = ?', [id])",
+    "sql": "'DELETE FROM leave_applications WHERE leaveTypeId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 95,
+    "start": 4362,
+    "end": 4483,
+    "call": "connection.query('UPDATE leave_types SET carriedForwardToLeaveTypeId = NULL WHERE carriedForwardToLeaveTypeId = ?', [id])",
+    "sql": "'UPDATE leave_types SET carriedForwardToLeaveTypeId = NULL WHERE carriedForwardToLeaveTypeId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 96,
+    "start": 4495,
+    "end": 4624,
+    "call": "connection.query('UPDATE leave_types SET subsequentLeaveTypeNotAllowedId = NULL WHERE subsequentLeaveTypeNotAllowedId = ?', [id])",
+    "sql": "'UPDATE leave_types SET subsequentLeaveTypeNotAllowedId = NULL WHERE subsequentLeaveTypeNotAllowedId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 99,
+    "start": 4674,
+    "end": 4736,
+    "call": "connection.query('DELETE FROM leave_types WHERE id = ?', [id])",
+    "sql": "'DELETE FROM leave_types WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 116,
+    "start": 5261,
+    "end": 5316,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_groups')",
+    "sql": "'SELECT * FROM leave_groups'"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 118,
+    "start": 5388,
+    "end": 5641,
+    "call": "db.query<RowDataPacket[]>(`\n        SELECT lgt.*, lt.name as leaveTypeName, lt.code as leaveTypeCode \n        FROM leave_group_types lgt \n        JOIN leave_types lt ON lgt.leaveTypeId = lt.id \n        WHERE lgt.leaveGroupId = ?\n      `, [groups[i].id])",
+    "sql": "`\n        SELECT lgt.*, lt.name as leaveTypeName, lt.code as leaveTypeCode \n        FROM leave_group_types lgt \n        JOIN leave_types lt ON lgt.leaveTypeId = lt.id \n        WHERE lgt.leaveGroupId = ?\n      `",
+    "args": "[groups[i].id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 139,
+    "start": 6199,
+    "end": 6304,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM leave_groups WHERE code = ? OR name = ? LIMIT 1', [code, name])",
+    "sql": "'SELECT id FROM leave_groups WHERE code = ? OR name = ? LIMIT 1'",
+    "args": "[code, name]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 144,
+    "start": 6401,
+    "end": 6771,
+    "call": "db.query(`\n        UPDATE leave_groups SET name=?, code=?, employmentType=?, country=?, startingMonth=?, effectiveFrom=?, effectiveTo=?, isActive=?, updatedAt=NOW() WHERE id=?\n      `, [name, code, employmentType, country, parseInt(startingMonth) || 1, effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null, isActive ?? 1, resultId])",
+    "sql": "`\n        UPDATE leave_groups SET name=?, code=?, employmentType=?, country=?, startingMonth=?, effectiveFrom=?, effectiveTo=?, isActive=?, updatedAt=NOW() WHERE id=?\n      `",
+    "args": "[name, code, employmentType, country, parseInt(startingMonth) || 1, effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null, isActive ?? 1, resultId]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 149,
+    "start": 6825,
+    "end": 7237,
+    "call": "db.query(`\n        INSERT INTO leave_groups (id, name, code, employmentType, country, startingMonth, effectiveFrom, effectiveTo, isActive, createdAt, updatedAt)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n      `, [resultId, name, code, employmentType, country, parseInt(startingMonth) || 1, effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null, isActive ?? 1])",
+    "sql": "`\n        INSERT INTO leave_groups (id, name, code, employmentType, country, startingMonth, effectiveFrom, effectiveTo, isActive, createdAt, updatedAt)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n      `",
+    "args": "[resultId, name, code, employmentType, country, parseInt(startingMonth) || 1, effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null, isActive ?? 1]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 155,
+    "start": 7271,
+    "end": 7351,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_groups WHERE id = ?', [resultId])",
+    "sql": "'SELECT * FROM leave_groups WHERE id = ?'",
+    "args": "[resultId]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 168,
+    "start": 7857,
+    "end": 8217,
+    "call": "db.query(`\n      UPDATE leave_groups SET name=?, code=?, employmentType=?, country=?, startingMonth=?, effectiveFrom=?, effectiveTo=?, isActive=?, updatedAt=NOW() WHERE id=?\n    `, [name, code, employmentType, country, parseInt(startingMonth) || 1, effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null, isActive ?? 1, id])",
+    "sql": "`\n      UPDATE leave_groups SET name=?, code=?, employmentType=?, country=?, startingMonth=?, effectiveFrom=?, effectiveTo=?, isActive=?, updatedAt=NOW() WHERE id=?\n    `",
+    "args": "[name, code, employmentType, country, parseInt(startingMonth) || 1, effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null, isActive ?? 1, id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 172,
+    "start": 8245,
+    "end": 8319,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_groups WHERE id = ?', [id])",
+    "sql": "'SELECT * FROM leave_groups WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 185,
+    "start": 8738,
+    "end": 8808,
+    "call": "db.query('DELETE FROM leave_group_types WHERE leaveGroupId = ?', [id])",
+    "sql": "'DELETE FROM leave_group_types WHERE leaveGroupId = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 188,
+    "start": 8845,
+    "end": 8900,
+    "call": "db.query('DELETE FROM leave_groups WHERE id = ?', [id])",
+    "sql": "'DELETE FROM leave_groups WHERE id = ?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 202,
+    "start": 9466,
+    "end": 10146,
+    "call": "db.query(`\n      INSERT INTO leave_group_types (\n        id, leaveGroupId, leaveTypeId, entitlementDays, unit, allocationMethod, allowProration, allowCarryForward, carryForwardLimit, minimumServiceMonths, maximumConsecutiveDays, approvalWorkflow, createdAt, updatedAt\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `, [\n      newId, req.params.id, leaveTypeId, parseFloat(entitlementDays) || 0, unit, allocationMethod,\n      allowProration ?? 1, allowCarryForward ?? 0, parseFloat(carryForwardLimit) || 0, parseInt(minimumServiceMonths) || 0,\n      maximumConsecutiveDays ? parseInt(maximumConsecutiveDays) : null, approvalWorkflow || \"Manager -> HR\"\n    ])",
+    "sql": "`\n      INSERT INTO leave_group_types (\n        id, leaveGroupId, leaveTypeId, entitlementDays, unit, allocationMethod, allowProration, allowCarryForward, carryForwardLimit, minimumServiceMonths, maximumConsecutiveDays, approvalWorkflow, createdAt, updatedAt\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `",
+    "args": "[\n      newId, req.params.id, leaveTypeId, parseFloat(entitlementDays) || 0, unit, allocationMethod,\n      allowProration ?? 1, allowCarryForward ?? 0, parseFloat(carryForwardLimit) || 0, parseInt(minimumServiceMonths) || 0,\n      maximumConsecutiveDays ? parseInt(maximumConsecutiveDays) : null, approvalWorkflow || \"Manager -> HR\"\n    ]"
+  },
+  {
+    "p": "backend/src/modules/leave/leave.routes.ts",
+    "line": 212,
+    "start": 10174,
+    "end": 10256,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_group_types WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM leave_group_types WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 21,
+    "start": 941,
+    "end": 1042,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM leave_years WHERE year = ? LIMIT 1', [parseInt(yearParam)])",
+    "sql": "'SELECT id FROM leave_years WHERE year = ? LIMIT 1'",
+    "args": "[parseInt(yearParam)]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 23,
+    "start": 1087,
+    "end": 1188,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM leave_years WHERE isActive = 1 ORDER BY year DESC LIMIT 1')",
+    "sql": "'SELECT id FROM leave_years WHERE isActive = 1 ORDER BY year DESC LIMIT 1'"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 29,
+    "start": 1351,
+    "end": 1809,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT e.*, \n             lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n             ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName\n      FROM leave_entitlements e\n      JOIN leave_types lt ON e.leaveTypeId = lt.id\n      JOIN leave_years ly ON e.leaveYearId = ly.id\n      WHERE e.userId = ? AND e.leaveYearId = ?\n      ORDER BY lt.name ASC\n    `, [userId, leaveYear.id])",
+    "sql": "`\n      SELECT e.*, \n             lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n             ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName\n      FROM leave_entitlements e\n      JOIN leave_types lt ON e.leaveTypeId = lt.id\n      JOIN leave_years ly ON e.leaveYearId = ly.id\n      WHERE e.userId = ? AND e.leaveYearId = ?\n      ORDER BY lt.name ASC\n    `",
+    "args": "[userId, leaveYear.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 43,
+    "start": 1995,
+    "end": 2104,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 49,
+    "start": 2388,
+    "end": 2900,
+    "call": "db.query<RowDataPacket[]>(`\n            SELECT e.*, \n                   lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n                   ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName\n            FROM leave_entitlements e\n            JOIN leave_types lt ON e.leaveTypeId = lt.id\n            JOIN leave_years ly ON e.leaveYearId = ly.id\n            WHERE e.userId = ? AND e.leaveYearId = ?\n            ORDER BY lt.name ASC\n          `, [userId, leaveYear.id])",
+    "sql": "`\n            SELECT e.*, \n                   lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n                   ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName\n            FROM leave_entitlements e\n            JOIN leave_types lt ON e.leaveTypeId = lt.id\n            JOIN leave_years ly ON e.leaveYearId = ly.id\n            WHERE e.userId = ? AND e.leaveYearId = ?\n            ORDER BY lt.name ASC\n          `",
+    "args": "[userId, leaveYear.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 101,
+    "start": 4228,
+    "end": 4324,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM leave_years WHERE year = ? LIMIT 1', [parseInt(year)])",
+    "sql": "'SELECT id FROM leave_years WHERE year = ? LIMIT 1'",
+    "args": "[parseInt(year)]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 110,
+    "start": 4535,
+    "end": 4644,
+    "call": "db.query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM leave_applications la WHERE ${whereClause}`, params)",
+    "sql": "`SELECT COUNT(*) as total FROM leave_applications la WHERE ${whereClause}`",
+    "args": "params"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 116,
+    "start": 4873,
+    "end": 5624,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT la.*,\n             lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n             ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName,\n             appr.id as appr_id, appr.name as appr_name, appr.email as appr_email,\n             cov.id as cov_id, cov.name as cov_name, cov.email as cov_email\n      FROM leave_applications la\n      JOIN leave_types lt ON la.leaveTypeId = lt.id\n      JOIN leave_years ly ON la.leaveYearId = ly.id\n      LEFT JOIN users appr ON la.approverId = appr.id\n      LEFT JOIN users cov ON la.coveringEmployeeId = cov.id\n      WHERE ${whereClause}\n      ORDER BY la.createdAt DESC\n      LIMIT ? OFFSET ?\n    `, [...params, limitNum, offset])",
+    "sql": "`\n      SELECT la.*,\n             lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n             ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName,\n             appr.id as appr_id, appr.name as appr_name, appr.email as appr_email,\n             cov.id as cov_id, cov.name as cov_name, cov.email as cov_email\n      FROM leave_applications la\n      JOIN leave_types lt ON la.leaveTypeId = lt.id\n      JOIN leave_years ly ON la.leaveYearId = ly.id\n      LEFT JOIN users appr ON la.approverId = appr.id\n      LEFT JOIN users cov ON la.coveringEmployeeId = cov.id\n      WHERE ${whereClause}\n      ORDER BY la.createdAt DESC\n      LIMIT ? OFFSET ?\n    `",
+    "args": "[...params, limitNum, offset]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 181,
+    "start": 7966,
+    "end": 8113,
+    "call": "db.query<RowDataPacket[]>('SELECT id,userId FROM employee_information_employees WHERE employeeNo = ? OR employeeNumber = ? LIMIT 1', [empId,empId])",
+    "sql": "'SELECT id,userId FROM employee_information_employees WHERE employeeNo = ? OR employeeNumber = ? LIMIT 1'",
+    "args": "[empId,empId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\apply.routes.ts",
+    "line": 185,
+    "start": 8266,
+    "end": 8361,
+    "call": "db.query<RowDataPacket[]>('SELECT id FROM leave_types WHERE code = ? LIMIT 1', [leaveTypeCode])",
+    "sql": "'SELECT id FROM leave_types WHERE code = ? LIMIT 1'",
+    "args": "[leaveTypeCode]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\ceo.routes.ts",
+    "line": 36,
+    "start": 1482,
+    "end": 1574,
+    "call": "db.query(`SELECT COUNT(*) as total FROM leave_applications la WHERE ${whereClause}`, params)",
+    "sql": "`SELECT COUNT(*) as total FROM leave_applications la WHERE ${whereClause}`",
+    "args": "params"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\ceo.routes.ts",
+    "line": 39,
+    "start": 1648,
+    "end": 2491,
+    "call": "db.query(`\n      SELECT la.*,\n             lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n             ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName,\n             appr.id as appr_id, appr.name as appr_name, appr.email as appr_email,\n             cov.id as cov_id, cov.name as cov_name, cov.email as cov_email,\n             applicant.name as applicant_name\n      FROM leave_applications la\n      JOIN leave_types lt ON la.leaveTypeId = lt.id\n      JOIN leave_years ly ON la.leaveYearId = ly.id\n      LEFT JOIN users appr ON la.approverId = appr.id\n      LEFT JOIN users cov ON la.coveringEmployeeId = cov.id\n      LEFT JOIN users applicant ON la.applicantId = applicant.id\n      WHERE ${whereClause}\n      ORDER BY la.createdAt DESC\n      LIMIT ? OFFSET ?\n    `, [...params, limit, offset])",
+    "sql": "`\n      SELECT la.*,\n             lt.id as lt_id, lt.name as lt_name, lt.color as lt_color, lt.code as lt_code,\n             ly.id as ly_id, ly.year as ly_year, ly.displayName as ly_displayName,\n             appr.id as appr_id, appr.name as appr_name, appr.email as appr_email,\n             cov.id as cov_id, cov.name as cov_name, cov.email as cov_email,\n             applicant.name as applicant_name\n      FROM leave_applications la\n      JOIN leave_types lt ON la.leaveTypeId = lt.id\n      JOIN leave_years ly ON la.leaveYearId = ly.id\n      LEFT JOIN users appr ON la.approverId = appr.id\n      LEFT JOIN users cov ON la.coveringEmployeeId = cov.id\n      LEFT JOIN users applicant ON la.applicantId = applicant.id\n      WHERE ${whereClause}\n      ORDER BY la.createdAt DESC\n      LIMIT ? OFFSET ?\n    `",
+    "args": "[...params, limit, offset]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\ceo.routes.ts",
+    "line": 92,
+    "start": 3949,
+    "end": 4471,
+    "call": "db.query(`\n      SELECT la.id, la.applicantId, la.status, la.createdAt, la.approvedAt, la.actionedAt, la.rejectedReason,\n             la.comments, la.cancelledAt, la.cancelReason,\n             appr.id as appr_id, appr.name as appr_name, appr.email as appr_email,\n             ae.id as applicant_employee_id\n      FROM leave_applications la\n      LEFT JOIN users appr ON la.approverId = appr.id\n      LEFT JOIN employee_information_employees ae ON ae.userId = la.applicantId\n      WHERE la.id = ?\n      LIMIT 1\n    `, [id])",
+    "sql": "`\n      SELECT la.id, la.applicantId, la.status, la.createdAt, la.approvedAt, la.actionedAt, la.rejectedReason,\n             la.comments, la.cancelledAt, la.cancelReason,\n             appr.id as appr_id, appr.name as appr_name, appr.email as appr_email,\n             ae.id as applicant_employee_id\n      FROM leave_applications la\n      LEFT JOIN users appr ON la.approverId = appr.id\n      LEFT JOIN employee_information_employees ae ON ae.userId = la.applicantId\n      WHERE la.id = ?\n      LIMIT 1\n    `",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\ceo.routes.ts",
+    "line": 126,
+    "start": 5253,
+    "end": 5546,
+    "call": "db.query<RowDataPacket[]>(\n      `SELECT h.id, h.action, h.level, h.comment, h.created_at,\n              u.name AS approver_name\n       FROM leave_approval_history h\n       LEFT JOIN users u ON u.id = h.approver_user_id\n       WHERE h.leave_application_id = ? ORDER BY h.created_at ASC`, [id])",
+    "sql": "`SELECT h.id, h.action, h.level, h.comment, h.created_at,\n              u.name AS approver_name\n       FROM leave_approval_history h\n       LEFT JOIN users u ON u.id = h.approver_user_id\n       WHERE h.leave_application_id = ? ORDER BY h.created_at ASC`",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\config.routes.ts",
+    "line": 15,
+    "start": 573,
+    "end": 664,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE isActive = 1 ORDER BY name ASC')",
+    "sql": "'SELECT * FROM leave_types WHERE isActive = 1 ORDER BY name ASC'"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\config.routes.ts",
+    "line": 39,
+    "start": 1693,
+    "end": 3054,
+    "call": "db.query(`\n      INSERT INTO leave_types (\n        id, name, code, description, color, category, unit, paymentType, isActive, allowHalfDays,\n        requireCoveringEmp, autoCalculateEndDate, holidaysCountAsLeave, showBalance, hideZeroEntitlement,\n        requireAttachment, commentMandatory, yearlyEntitlement, maxDaysPerInstance, needMedicalCertificate,\n        maxDaysWithoutMedCert, futureLeaveAllowed, carryForwardEnabled, carryForwardMaxDays, carryForwardLimit,\n        encashmentEnabled, encashmentIsFixed, encashmentValue, createdAt, updatedAt\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `, [\n      newId, name, code, description, color || '#2563eb', category, unit, paymentType, isActive ?? 1, allowHalfDays ?? 1,\n      requireCoveringEmp ?? 0, autoCalculateEndDate ?? 0, holidaysCountAsLeave ?? 0, showBalance ?? 1, hideZeroEntitlement ?? 0,\n      requireAttachment ?? 0, commentMandatory ?? 0, parseFloat(yearlyEntitlement) || 0, parseInt(maxDaysPerInstance) || null,\n      needMedicalCertificate ?? 0, parseInt(maxDaysWithoutMedCert) || null, futureLeaveAllowed ?? 1, carryForwardEnabled ?? 0,\n      parseFloat(carryForwardMaxDays) || null, parseFloat(carryForwardLimit) || null, encashmentEnabled ?? 0, encashmentIsFixed ?? 1,\n      parseFloat(encashmentValue) || null\n    ])",
+    "sql": "`\n      INSERT INTO leave_types (\n        id, name, code, description, color, category, unit, paymentType, isActive, allowHalfDays,\n        requireCoveringEmp, autoCalculateEndDate, holidaysCountAsLeave, showBalance, hideZeroEntitlement,\n        requireAttachment, commentMandatory, yearlyEntitlement, maxDaysPerInstance, needMedicalCertificate,\n        maxDaysWithoutMedCert, futureLeaveAllowed, carryForwardEnabled, carryForwardMaxDays, carryForwardLimit,\n        encashmentEnabled, encashmentIsFixed, encashmentValue, createdAt, updatedAt\n      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n    `",
+    "args": "[\n      newId, name, code, description, color || '#2563eb', category, unit, paymentType, isActive ?? 1, allowHalfDays ?? 1,\n      requireCoveringEmp ?? 0, autoCalculateEndDate ?? 0, holidaysCountAsLeave ?? 0, showBalance ?? 1, hideZeroEntitlement ?? 0,\n      requireAttachment ?? 0, commentMandatory ?? 0, parseFloat(yearlyEntitlement) || 0, parseInt(maxDaysPerInstance) || null,\n      needMedicalCertificate ?? 0, parseInt(maxDaysWithoutMedCert) || null, futureLeaveAllowed ?? 1, carryForwardEnabled ?? 0,\n      parseFloat(carryForwardMaxDays) || null, parseFloat(carryForwardLimit) || null, encashmentEnabled ?? 0, encashmentIsFixed ?? 1,\n      parseFloat(encashmentValue) || null\n    ]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\config.routes.ts",
+    "line": 56,
+    "start": 3082,
+    "end": 3158,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM leave_types WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\config.routes.ts",
+    "line": 72,
+    "start": 3827,
+    "end": 3919,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_years WHERE isActive = 1 ORDER BY year DESC')",
+    "sql": "'SELECT * FROM leave_years WHERE isActive = 1 ORDER BY year DESC'"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\config.routes.ts",
+    "line": 86,
+    "start": 4499,
+    "end": 4801,
+    "call": "db.query<RowDataPacket[]>(`SELECT d.id, DATE_FORMAT(d.date,'%Y-%m-%d') AS date,\n      t.name, t.type AS dayType, t.displayColor AS color\n      FROM calendarday d JOIN holidaycalendar h ON h.id=d.holidayCalendarId\n      JOIN daytype t ON t.id=d.dayTypeId WHERE h.year=? ORDER BY d.date`, [calendarYear])",
+    "sql": "`SELECT d.id, DATE_FORMAT(d.date,'%Y-%m-%d') AS date,\n      t.name, t.type AS dayType, t.displayColor AS color\n      FROM calendarday d JOIN holidaycalendar h ON h.id=d.holidayCalendarId\n      JOIN daytype t ON t.id=d.dayTypeId WHERE h.year=? ORDER BY d.date`",
+    "args": "[calendarYear]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 14,
+    "start": 456,
+    "end": 541,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_rule_scripts ORDER BY createdAt DESC')",
+    "sql": "'SELECT * FROM leave_rule_scripts ORDER BY createdAt DESC'"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 24,
+    "start": 751,
+    "end": 850,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_rule_scripts WHERE id = ? LIMIT 1', [req.params.id])",
+    "sql": "'SELECT * FROM leave_rule_scripts WHERE id = ? LIMIT 1'",
+    "args": "[req.params.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 40,
+    "start": 1248,
+    "end": 1467,
+    "call": "db.query(\n      'INSERT INTO leave_rule_scripts (id, name, description, content, isDefault, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',\n      [newId, name, description, content, isDefault ? 1 : 0]\n    )",
+    "sql": "'INSERT INTO leave_rule_scripts (id, name, description, content, isDefault, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())'",
+    "args": "[newId, name, description, content, isDefault ? 1 : 0]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 44,
+    "start": 1494,
+    "end": 1577,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_rule_scripts WHERE id = ?', [newId])",
+    "sql": "'SELECT * FROM leave_rule_scripts WHERE id = ?'",
+    "args": "[newId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 55,
+    "start": 1832,
+    "end": 2041,
+    "call": "db.query(\n      'UPDATE leave_rule_scripts SET name = ?, description = ?, content = ?, isDefault = ?, updatedAt = NOW() WHERE id = ?',\n      [name, description, content, isDefault ? 1 : 0, req.params.id]\n    )",
+    "sql": "'UPDATE leave_rule_scripts SET name = ?, description = ?, content = ?, isDefault = ?, updatedAt = NOW() WHERE id = ?'",
+    "args": "[name, description, content, isDefault ? 1 : 0, req.params.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 59,
+    "start": 2068,
+    "end": 2159,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_rule_scripts WHERE id = ?', [req.params.id])",
+    "sql": "'SELECT * FROM leave_rule_scripts WHERE id = ?'",
+    "args": "[req.params.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\rules.routes.ts",
+    "line": 69,
+    "start": 2353,
+    "end": 2425,
+    "call": "db.query('DELETE FROM leave_rule_scripts WHERE id = ?', [req.params.id])",
+    "sql": "'DELETE FROM leave_rule_scripts WHERE id = ?'",
+    "args": "[req.params.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\supervisor.routes.ts",
+    "line": 30,
+    "start": 1748,
+    "end": 2359,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT la.*, u.id AS applicant_id, u.name AS applicant_name, u.email AS applicant_email,\n        lt.id AS lt_id, lt.name AS lt_name, lt.color AS lt_color, lt.code AS lt_code,\n        ly.id AS ly_id, ly.year AS ly_year, ly.displayName AS ly_displayName\n      FROM leave_applications la\n      JOIN users u ON u.id = la.applicantId\n      JOIN leave_types lt ON lt.id = la.leaveTypeId\n      JOIN leave_years ly ON ly.id = la.leaveYearId\n      WHERE la.approverId = ? AND la.applicantId IN (?) AND la.status LIKE 'PENDING%'\n      ORDER BY la.createdAt ASC`, [req.user!.userId, ids])",
+    "sql": "`\n      SELECT la.*, u.id AS applicant_id, u.name AS applicant_name, u.email AS applicant_email,\n        lt.id AS lt_id, lt.name AS lt_name, lt.color AS lt_color, lt.code AS lt_code,\n        ly.id AS ly_id, ly.year AS ly_year, ly.displayName AS ly_displayName\n      FROM leave_applications la\n      JOIN users u ON u.id = la.applicantId\n      JOIN leave_types lt ON lt.id = la.leaveTypeId\n      JOIN leave_years ly ON ly.id = la.leaveYearId\n      WHERE la.approverId = ? AND la.applicantId IN (?) AND la.status LIKE 'PENDING%'\n      ORDER BY la.createdAt ASC`",
+    "args": "[req.user!.userId, ids]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\supervisor.routes.ts",
+    "line": 40,
+    "start": 2387,
+    "end": 2875,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT la.applicantId, la.totalDays, DATE_FORMAT(la.startDate, '%Y-%m-%d') AS startDate,\n        DATE_FORMAT(la.endDate, '%Y-%m-%d') AS endDate, lt.name AS leaveType, lt.color AS leaveTypeColor\n      FROM leave_applications la JOIN leave_types lt ON lt.id=la.leaveTypeId\n      WHERE la.applicantId IN (?) AND la.status='APPROVED' AND la.endDate >= DATE_SUB(?, INTERVAL 365 DAY)\n      AND la.startDate <= DATE_ADD(?, INTERVAL 6 DAY)`, [ids, today, today])",
+    "sql": "`\n      SELECT la.applicantId, la.totalDays, DATE_FORMAT(la.startDate, '%Y-%m-%d') AS startDate,\n        DATE_FORMAT(la.endDate, '%Y-%m-%d') AS endDate, lt.name AS leaveType, lt.color AS leaveTypeColor\n      FROM leave_applications la JOIN leave_types lt ON lt.id=la.leaveTypeId\n      WHERE la.applicantId IN (?) AND la.status='APPROVED' AND la.endDate >= DATE_SUB(?, INTERVAL 365 DAY)\n      AND la.startDate <= DATE_ADD(?, INTERVAL 6 DAY)`",
+    "args": "[ids, today, today]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/routes\\supervisor.routes.ts",
+    "line": 46,
+    "start": 2908,
+    "end": 3148,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT employeeId, DATE_FORMAT(date, '%Y-%m-%d') AS date, status, inTime\n      FROM attendance_records WHERE employeeId IN (?) AND date >= DATE_SUB(?, INTERVAL 365 DAY) AND date <= ?`, [eids, today, today])",
+    "sql": "`\n      SELECT employeeId, DATE_FORMAT(date, '%Y-%m-%d') AS date, status, inTime\n      FROM attendance_records WHERE employeeId IN (?) AND date >= DATE_SUB(?, INTERVAL 365 DAY) AND date <= ?`",
+    "args": "[eids, today, today]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 11,
+    "start": 1354,
+    "end": 1610,
+    "call": "c.query<RowDataPacket[]>(`SELECT u.id FROM employee_information_employees e JOIN employee_information_employees m ON m.id=e.reportingManagerId JOIN users u ON u.id=m.userId WHERE e.id=? AND m.status='Active' AND m.isActive=1 AND u.isActive=1`,[employeeId])",
+    "sql": "`SELECT u.id FROM employee_information_employees e JOIN employee_information_employees m ON m.id=e.reportingManagerId JOIN users u ON u.id=m.userId WHERE e.id=? AND m.status='Active' AND m.isActive=1 AND u.isActive=1`",
+    "args": "[employeeId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 32,
+    "start": 2968,
+    "end": 3135,
+    "call": "c.query<RowDataPacket[]>(`SELECT id,organizationalRank FROM employee_information_employees WHERE userId=? AND status='Active' AND isActive=1 FOR UPDATE`,[applicantId])",
+    "sql": "`SELECT id,organizationalRank FROM employee_information_employees WHERE userId=? AND status='Active' AND isActive=1 FOR UPDATE`",
+    "args": "[applicantId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 34,
+    "start": 3224,
+    "end": 3319,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id=? AND isActive=1',[v.leaveTypeId])",
+    "sql": "'SELECT * FROM leave_types WHERE id=? AND isActive=1'",
+    "args": "[v.leaveTypeId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 41,
+    "start": 4083,
+    "end": 4218,
+    "call": "c.query<RowDataPacket[]>('SELECT id FROM leave_years WHERE isActive=1 AND startDate<=? AND endDate>=? LIMIT 1',[v.startDate,v.endDate])",
+    "sql": "'SELECT id FROM leave_years WHERE isActive=1 AND startDate<=? AND endDate>=? LIMIT 1'",
+    "args": "[v.startDate,v.endDate]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 42,
+    "start": 4304,
+    "end": 4511,
+    "call": "c.query<RowDataPacket[]>(`SELECT id FROM leave_applications WHERE applicantId=? AND (status LIKE 'PENDING%' OR status='APPROVED') AND startDate<=? AND endDate>=? LIMIT 1`,[applicantId,v.endDate,v.startDate])",
+    "sql": "`SELECT id FROM leave_applications WHERE applicantId=? AND (status LIKE 'PENDING%' OR status='APPROVED') AND startDate<=? AND endDate>=? LIMIT 1`",
+    "args": "[applicantId,v.endDate,v.startDate]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 44,
+    "start": 4639,
+    "end": 4797,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_entitlements WHERE userId=? AND leaveTypeId=? AND leaveYearId=? FOR UPDATE',[applicantId,v.leaveTypeId,year.id])",
+    "sql": "'SELECT * FROM leave_entitlements WHERE userId=? AND leaveTypeId=? AND leaveYearId=? FOR UPDATE'",
+    "args": "[applicantId,v.leaveTypeId,year.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 49,
+    "start": 5253,
+    "end": 5386,
+    "call": "c.query<RowDataPacket[]>(`SELECT id FROM users WHERE role='ADMIN' AND isActive=1 AND id<>? ORDER BY createdAt LIMIT 1`,[applicantId])",
+    "sql": "`SELECT id FROM users WHERE role='ADMIN' AND isActive=1 AND id<>? ORDER BY createdAt LIMIT 1`",
+    "args": "[applicantId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 53,
+    "start": 5537,
+    "end": 6173,
+    "call": "c.query(`INSERT INTO leave_applications (id,applicantId,employeeId,leaveTypeId,leaveYearId,startDate,endDate,totalDays,halfDayType,reason,comments,coveringEmployeeId,medCertSubmitted,medCertRefNo,medCertIssuedDate,attachmentUrl,status,approverId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())`,[id,applicantId,employee.id,v.leaveTypeId,year.id,v.startDate,v.endDate,total,v.halfDayType,v.reason||v.comments||null,v.comments||v.reason||null,v.coveringEmployeeId||null,v.medCertSubmitted?1:0,v.medCertRefNo||null,v.medCertIssuedDate||null,v.attachmentUrl||null,approvedImport?'APPROVED':'PENDING',approver])",
+    "sql": "`INSERT INTO leave_applications (id,applicantId,employeeId,leaveTypeId,leaveYearId,startDate,endDate,totalDays,halfDayType,reason,comments,coveringEmployeeId,medCertSubmitted,medCertRefNo,medCertIssuedDate,attachmentUrl,status,approverId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())`",
+    "args": "[id,applicantId,employee.id,v.leaveTypeId,year.id,v.startDate,v.endDate,total,v.halfDayType,v.reason||v.comments||null,v.comments||v.reason||null,v.coveringEmployeeId||null,v.medCertSubmitted?1:0,v.medCertRefNo||null,v.medCertIssuedDate||null,v.attachmentUrl||null,approvedImport?'APPROVED':'PENDING',approver]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 54,
+    "start": 6201,
+    "end": 6391,
+    "call": "c.query(`UPDATE leave_entitlements SET ${approvedImport?'usedDays':'pendingDays'}=COALESCE(${approvedImport?'usedDays':'pendingDays'},0)+?,updatedAt=NOW() WHERE id=?`,[total,entitlement.id])",
+    "sql": "`UPDATE leave_entitlements SET ${approvedImport?'usedDays':'pendingDays'}=COALESCE(${approvedImport?'usedDays':'pendingDays'},0)+?,updatedAt=NOW() WHERE id=?`",
+    "args": "[total,entitlement.id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 56,
+    "start": 6430,
+    "end": 6548,
+    "call": "c.query('UPDATE leave_applications SET approvedAt=NOW(),actionedAt=NOW(),actionedById=? WHERE id=?',[actor.userId,id])",
+    "sql": "'UPDATE leave_applications SET approvedAt=NOW(),actionedAt=NOW(),actionedById=? WHERE id=?'",
+    "args": "[actor.userId,id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 57,
+    "start": 6562,
+    "end": 6775,
+    "call": "c.query(`INSERT INTO leave_approval_history (id,leave_application_id,approver_user_id,action,level,comment,created_at) VALUES (?,?,?,'APPROVED',1,'Administrator bulk import',NOW())`,[randomUUID(),id,actor.userId])",
+    "sql": "`INSERT INTO leave_approval_history (id,leave_application_id,approver_user_id,action,level,comment,created_at) VALUES (?,?,?,'APPROVED',1,'Administrator bulk import',NOW())`",
+    "args": "[randomUUID(),id,actor.userId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 59,
+    "start": 6811,
+    "end": 6887,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_applications WHERE id=?',[id])",
+    "sql": "'SELECT * FROM leave_applications WHERE id=?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 66,
+    "start": 7243,
+    "end": 7330,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_applications WHERE id=? FOR UPDATE',[id])",
+    "sql": "'SELECT * FROM leave_applications WHERE id=? FOR UPDATE'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 69,
+    "start": 7588,
+    "end": 7694,
+    "call": "c.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE userId=?',[app.applicantId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId=?'",
+    "args": "[app.applicantId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 72,
+    "start": 7946,
+    "end": 8056,
+    "call": "c.query<RowDataPacket[]>('SELECT COUNT(*) AS n FROM leave_approval_history WHERE leave_application_id=?',[id])",
+    "sql": "'SELECT COUNT(*) AS n FROM leave_approval_history WHERE leave_application_id=?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 74,
+    "start": 8093,
+    "end": 8310,
+    "call": "c.query(`INSERT INTO leave_approval_history (id,leave_application_id,approver_user_id,action,level,comment,created_at) VALUES (?,?,?,?,?,?,NOW())`,[randomUUID(),id,actor.userId,action,Number(count.n)+1,comment||null])",
+    "sql": "`INSERT INTO leave_approval_history (id,leave_application_id,approver_user_id,action,level,comment,created_at) VALUES (?,?,?,?,?,?,NOW())`",
+    "args": "[randomUUID(),id,actor.userId,action,Number(count.n)+1,comment||null]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 75,
+    "start": 8322,
+    "end": 8577,
+    "call": "c.query(`UPDATE leave_applications SET status=?,approverId=?,actionedById=?,actionedAt=NOW(),approvedAt=IF(?='APPROVED',NOW(),NULL),rejectedReason=?,updatedAt=NOW() WHERE id=?`,[status,actor.userId,actor.userId,status,action==='REJECTED'?comment:null,id])",
+    "sql": "`UPDATE leave_applications SET status=?,approverId=?,actionedById=?,actionedAt=NOW(),approvedAt=IF(?='APPROVED',NOW(),NULL),rejectedReason=?,updatedAt=NOW() WHERE id=?`",
+    "args": "[status,actor.userId,actor.userId,status,action==='REJECTED'?comment:null,id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 76,
+    "start": 8631,
+    "end": 8920,
+    "call": "c.query(`UPDATE leave_entitlements SET pendingDays=GREATEST(0,COALESCE(pendingDays,0)-?),usedDays=COALESCE(usedDays,0)+?,updatedAt=NOW() WHERE userId=? AND leaveTypeId=? AND leaveYearId=?`,[app.totalDays,status==='APPROVED'?app.totalDays:0,app.applicantId,app.leaveTypeId,app.leaveYearId])",
+    "sql": "`UPDATE leave_entitlements SET pendingDays=GREATEST(0,COALESCE(pendingDays,0)-?),usedDays=COALESCE(usedDays,0)+?,updatedAt=NOW() WHERE userId=? AND leaveTypeId=? AND leaveYearId=?`",
+    "args": "[app.totalDays,status==='APPROVED'?app.totalDays:0,app.applicantId,app.leaveTypeId,app.leaveYearId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 77,
+    "start": 8950,
+    "end": 9026,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_applications WHERE id=?',[id])",
+    "sql": "'SELECT * FROM leave_applications WHERE id=?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 82,
+    "start": 9183,
+    "end": 9270,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_applications WHERE id=? FOR UPDATE',[id])",
+    "sql": "'SELECT * FROM leave_applications WHERE id=? FOR UPDATE'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 86,
+    "start": 9590,
+    "end": 9796,
+    "call": "c.query(`UPDATE leave_entitlements SET ${field}=GREATEST(0,COALESCE(${field},0)-?),updatedAt=NOW() WHERE userId=? AND leaveTypeId=? AND leaveYearId=?`,[app.totalDays,userId,app.leaveTypeId,app.leaveYearId])",
+    "sql": "`UPDATE leave_entitlements SET ${field}=GREATEST(0,COALESCE(${field},0)-?),updatedAt=NOW() WHERE userId=? AND leaveTypeId=? AND leaveYearId=?`",
+    "args": "[app.totalDays,userId,app.leaveTypeId,app.leaveYearId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 87,
+    "start": 9808,
+    "end": 9945,
+    "call": "c.query(`UPDATE leave_applications SET status='CANCELLED',cancelledAt=NOW(),cancelReason=?,updatedAt=NOW() WHERE id=?`,[reason||null,id])",
+    "sql": "`UPDATE leave_applications SET status='CANCELLED',cancelledAt=NOW(),cancelReason=?,updatedAt=NOW() WHERE id=?`",
+    "args": "[reason||null,id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 88,
+    "start": 9957,
+    "end": 10144,
+    "call": "c.query(`INSERT INTO leave_approval_history (id,leave_application_id,approver_user_id,action,comment,created_at) VALUES (?,?,?,'CANCELLED',?,NOW())`,[randomUUID(),id,userId,reason||null])",
+    "sql": "`INSERT INTO leave_approval_history (id,leave_application_id,approver_user_id,action,comment,created_at) VALUES (?,?,?,'CANCELLED',?,NOW())`",
+    "args": "[randomUUID(),id,userId,reason||null]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\application.service.ts",
+    "line": 89,
+    "start": 10174,
+    "end": 10250,
+    "call": "c.query<RowDataPacket[]>('SELECT * FROM leave_applications WHERE id=?',[id])",
+    "sql": "'SELECT * FROM leave_applications WHERE id=?'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\leaveRulesEvaluator.ts",
+    "line": 70,
+    "start": 1834,
+    "end": 1948,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1', [input.employeeId])",
+    "sql": "'SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1'",
+    "args": "[input.employeeId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\leaveRulesEvaluator.ts",
+    "line": 74,
+    "start": 2069,
+    "end": 2203,
+    "call": "db.query<RowDataPacket[]>('SELECT gender FROM employee_information_personal_details WHERE employeeId = ? LIMIT 1', [input.employeeId])",
+    "sql": "'SELECT gender FROM employee_information_personal_details WHERE employeeId = ? LIMIT 1'",
+    "args": "[input.employeeId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\leaveRulesEvaluator.ts",
+    "line": 77,
+    "start": 2286,
+    "end": 2426,
+    "call": "db.query<RowDataPacket[]>('SELECT dateJoined, probationStatus FROM employee_information_employees WHERE id = ? LIMIT 1', [input.employeeId])",
+    "sql": "'SELECT dateJoined, probationStatus FROM employee_information_employees WHERE id = ? LIMIT 1'",
+    "args": "[input.employeeId]"
+  },
+  {
+    "p": "backend/src/modules/leave-management/services\\leaveRulesEvaluator.ts",
+    "line": 91,
+    "start": 2986,
+    "end": 3082,
+    "call": "db.query<RowDataPacket[]>('SELECT * FROM leave_types WHERE id = ? LIMIT 1', [input.leaveTypeId])",
+    "sql": "'SELECT * FROM leave_types WHERE id = ? LIMIT 1'",
+    "args": "[input.leaveTypeId]"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 47,
+    "start": 1641,
+    "end": 1681,
+    "call": "db.query<RowDataPacket[]>(query, params)",
+    "sql": "query",
+    "args": "params"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 93,
+    "start": 3517,
+    "end": 3557,
+    "call": "db.query<RowDataPacket[]>(query, params)",
+    "sql": "query",
+    "args": "params"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 107,
+    "start": 3909,
+    "end": 3941,
+    "call": "db.query<RowDataPacket[]>(query)",
+    "sql": "query"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 153,
+    "start": 6362,
+    "end": 6394,
+    "call": "db.query<RowDataPacket[]>(query)",
+    "sql": "query"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 164,
+    "start": 6732,
+    "end": 6833,
+    "call": "db.query('SELECT id, reportingManagerId FROM employee_information_employees WHERE status = \"Active\"')",
+    "sql": "'SELECT id, reportingManagerId FROM employee_information_employees WHERE status = \"Active\"'"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 189,
+    "start": 7546,
+    "end": 7638,
+    "call": "db.query('SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1', [userId])",
+    "sql": "'SELECT id FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 216,
+    "start": 8877,
+    "end": 8909,
+    "call": "db.query<RowDataPacket[]>(query)",
+    "sql": "query"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 239,
+    "start": 9935,
+    "end": 10065,
+    "call": "db.query(\n      'SELECT id, reportingManagerId FROM employee_information_employees WHERE userId = ? LIMIT 1',\n      [userId]\n    )",
+    "sql": "'SELECT id, reportingManagerId FROM employee_information_employees WHERE userId = ? LIMIT 1'",
+    "args": "[userId]"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 249,
+    "start": 10273,
+    "end": 11209,
+    "call": "db.query(`\n      SELECT \n        e.id,\n        COALESCE(e.employeeNo, e.employeeNumber, '') as employeeNo,\n        COALESCE(\n          NULLIF(TRIM(CONCAT(COALESCE(pd.firstName, ''), ' ', COALESCE(pd.lastName, ''))), ''),\n          e.callingName,\n          NULLIF(TRIM(CONCAT(COALESCE(e.firstName, ''), ' ', COALESCE(e.lastName, ''))), ''),\n          'Manager'\n        ) as fullName,\n        COALESCE(e.designation, wd.designationId, 'Staff') as designation,\n        COALESCE(e.department, wd.departmentId, '') as department,\n        e.avatar,\n        e.status,\n        u.email as personalEmail,\n        '' as mobilePhone\n      FROM employee_information_employees e\n      LEFT JOIN employee_information_personal_details pd ON e.id = pd.employeeId\n      LEFT JOIN users u ON e.userId = u.id\n      LEFT JOIN employee_information_workstation_details wd ON e.id = wd.employeeId\n      WHERE e.id = ?\n      LIMIT 1\n    `, [reportingManagerId])",
+    "sql": "`\n      SELECT \n        e.id,\n        COALESCE(e.employeeNo, e.employeeNumber, '') as employeeNo,\n        COALESCE(\n          NULLIF(TRIM(CONCAT(COALESCE(pd.firstName, ''), ' ', COALESCE(pd.lastName, ''))), ''),\n          e.callingName,\n          NULLIF(TRIM(CONCAT(COALESCE(e.firstName, ''), ' ', COALESCE(e.lastName, ''))), ''),\n          'Manager'\n        ) as fullName,\n        COALESCE(e.designation, wd.designationId, 'Staff') as designation,\n        COALESCE(e.department, wd.departmentId, '') as department,\n        e.avatar,\n        e.status,\n        u.email as personalEmail,\n        '' as mobilePhone\n      FROM employee_information_employees e\n      LEFT JOIN employee_information_personal_details pd ON e.id = pd.employeeId\n      LEFT JOIN users u ON e.userId = u.id\n      LEFT JOIN employee_information_workstation_details wd ON e.id = wd.employeeId\n      WHERE e.id = ?\n      LIMIT 1\n    `",
+    "args": "[reportingManagerId]"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 280,
+    "start": 11366,
+    "end": 11519,
+    "call": "db.query(`\n      CREATE TABLE IF NOT EXISTS reporting_hierarchy_levels (\n        depth INT PRIMARY KEY,\n        name VARCHAR(255) NOT NULL\n      )\n    `)",
+    "sql": "`\n      CREATE TABLE IF NOT EXISTS reporting_hierarchy_levels (\n        depth INT PRIMARY KEY,\n        name VARCHAR(255) NOT NULL\n      )\n    `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 293,
+    "start": 11693,
+    "end": 11755,
+    "call": "db.query('SELECT depth, name FROM reporting_hierarchy_levels')",
+    "sql": "'SELECT depth, name FROM reporting_hierarchy_levels'"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/reporting_hierarchy.service.ts",
+    "line": 306,
+    "start": 12079,
+    "end": 12250,
+    "call": "db.query(\n      `INSERT INTO reporting_hierarchy_levels (depth, name) \n       VALUES (?, ?) \n       ON DUPLICATE KEY UPDATE name = VALUES(name)`,\n      [depth, name]\n    )",
+    "sql": "`INSERT INTO reporting_hierarchy_levels (depth, name) \n       VALUES (?, ?) \n       ON DUPLICATE KEY UPDATE name = VALUES(name)`",
+    "args": "[depth, name]"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 13,
+    "start": 412,
+    "end": 645,
+    "call": "conn.query(`\n      SELECT COLUMN_NAME \n      FROM information_schema.COLUMNS \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'employee_information_employees' \n        AND COLUMN_NAME = 'reportingEffectiveFrom'\n    `)",
+    "sql": "`\n      SELECT COLUMN_NAME \n      FROM information_schema.COLUMNS \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'employee_information_employees' \n        AND COLUMN_NAME = 'reportingEffectiveFrom'\n    `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 23,
+    "start": 755,
+    "end": 855,
+    "call": "conn.query(`ALTER TABLE employee_information_employees ADD COLUMN reportingEffectiveFrom DATE NULL`)",
+    "sql": "`ALTER TABLE employee_information_employees ADD COLUMN reportingEffectiveFrom DATE NULL`"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 29,
+    "start": 1002,
+    "end": 1254,
+    "call": "conn.query(`\n      SELECT CONSTRAINT_NAME \n      FROM information_schema.KEY_COLUMN_USAGE \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'employee_information_employees' \n        AND CONSTRAINT_NAME = 'fk_emp_reporting_manager'\n    `)",
+    "sql": "`\n      SELECT CONSTRAINT_NAME \n      FROM information_schema.KEY_COLUMN_USAGE \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'employee_information_employees' \n        AND CONSTRAINT_NAME = 'fk_emp_reporting_manager'\n    `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 40,
+    "start": 1453,
+    "end": 1699,
+    "call": "conn.query(`\n        ALTER TABLE employee_information_employees \n        ADD CONSTRAINT fk_emp_reporting_manager \n        FOREIGN KEY (reportingManagerId) \n        REFERENCES employee_information_employees(id) \n        ON DELETE SET NULL\n      `)",
+    "sql": "`\n        ALTER TABLE employee_information_employees \n        ADD CONSTRAINT fk_emp_reporting_manager \n        FOREIGN KEY (reportingManagerId) \n        REFERENCES employee_information_employees(id) \n        ON DELETE SET NULL\n      `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 52,
+    "start": 1896,
+    "end": 2070,
+    "call": "conn.query(`\n      SELECT TABLE_NAME \n      FROM information_schema.TABLES \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'reporting_hierarchy_audit'\n    `)",
+    "sql": "`\n      SELECT TABLE_NAME \n      FROM information_schema.TABLES \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'reporting_hierarchy_audit'\n    `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 61,
+    "start": 2187,
+    "end": 2727,
+    "call": "conn.query(`\n        CREATE TABLE reporting_hierarchy_audit (\n          id VARCHAR(36) PRIMARY KEY,\n          employee_id VARCHAR(36) NOT NULL,\n          action VARCHAR(100) NOT NULL,\n          previous_manager_id VARCHAR(36) NULL,\n          new_manager_id VARCHAR(36) NULL,\n          effective_date DATE NULL,\n          reason TEXT NULL,\n          remarks TEXT NULL,\n          transfer_pending_approvals TINYINT(1) DEFAULT 0,\n          changed_by VARCHAR(36) NULL,\n          created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n        )\n      `)",
+    "sql": "`\n        CREATE TABLE reporting_hierarchy_audit (\n          id VARCHAR(36) PRIMARY KEY,\n          employee_id VARCHAR(36) NOT NULL,\n          action VARCHAR(100) NOT NULL,\n          previous_manager_id VARCHAR(36) NULL,\n          new_manager_id VARCHAR(36) NULL,\n          effective_date DATE NULL,\n          reason TEXT NULL,\n          remarks TEXT NULL,\n          transfer_pending_approvals TINYINT(1) DEFAULT 0,\n          changed_by VARCHAR(36) NULL,\n          created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n        )\n      `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 81,
+    "start": 2897,
+    "end": 3069,
+    "call": "conn.query(`\n      SELECT TABLE_NAME \n      FROM information_schema.TABLES \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'reporting_relationships'\n    `)",
+    "sql": "`\n      SELECT TABLE_NAME \n      FROM information_schema.TABLES \n      WHERE TABLE_SCHEMA = DATABASE() \n        AND TABLE_NAME = 'reporting_relationships'\n    `"
+  },
+  {
+    "p": "backend/src/modules/reporting_hierarchy/schema_migration.ts",
+    "line": 90,
+    "start": 3182,
+    "end": 3849,
+    "call": "conn.query(`\n        CREATE TABLE reporting_relationships (\n          id VARCHAR(36) PRIMARY KEY,\n          employee_id VARCHAR(36) NOT NULL,\n          manager_id VARCHAR(36) NULL,\n          relationship_type VARCHAR(50) DEFAULT 'PRIMARY',\n          effective_start_date DATE NOT NULL,\n          effective_end_date DATE NULL,\n          reason TEXT NULL,\n          remarks TEXT NULL,\n          status VARCHAR(50) DEFAULT 'Active',\n          created_by VARCHAR(36) NULL,\n          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n          updated_by VARCHAR(36) NULL,\n          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n        )\n      `)",
+    "sql": "`\n        CREATE TABLE reporting_relationships (\n          id VARCHAR(36) PRIMARY KEY,\n          employee_id VARCHAR(36) NOT NULL,\n          manager_id VARCHAR(36) NULL,\n          relationship_type VARCHAR(50) DEFAULT 'PRIMARY',\n          effective_start_date DATE NOT NULL,\n          effective_end_date DATE NULL,\n          reason TEXT NULL,\n          remarks TEXT NULL,\n          status VARCHAR(50) DEFAULT 'Active',\n          created_by VARCHAR(36) NULL,\n          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n          updated_by VARCHAR(36) NULL,\n          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n        )\n      `"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 9,
+    "start": 271,
+    "end": 941,
+    "call": "db.query<RowDataPacket[]>(`\n      SELECT\n        u.id, u.name, u.email, u.role, u.isActive, u.createdAt,\n        e.employeeNo,\n        COALESCE(pd.fullName, pd.firstName, u.name) AS displayName,\n        des.name  AS designation,\n        st.name   AS department\n      FROM users u\n      LEFT JOIN employee_information_employees e  ON e.userId = u.id\n      LEFT JOIN employee_information_personal_details pd ON pd.employeeId = e.id\n      LEFT JOIN employee_information_workstation_details wd ON wd.employeeId = e.id\n      LEFT JOIN designations des ON des.id = wd.designationId\n      LEFT JOIN eim_structures st  ON st.id = wd.departmentId\n      ORDER BY u.name ASC\n    `)",
+    "sql": "`\n      SELECT\n        u.id, u.name, u.email, u.role, u.isActive, u.createdAt,\n        e.employeeNo,\n        COALESCE(pd.fullName, pd.firstName, u.name) AS displayName,\n        des.name  AS designation,\n        st.name   AS department\n      FROM users u\n      LEFT JOIN employee_information_employees e  ON e.userId = u.id\n      LEFT JOIN employee_information_personal_details pd ON pd.employeeId = e.id\n      LEFT JOIN employee_information_workstation_details wd ON wd.employeeId = e.id\n      LEFT JOIN designations des ON des.id = wd.designationId\n      LEFT JOIN eim_structures st  ON st.id = wd.departmentId\n      ORDER BY u.name ASC\n    `"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 56,
+    "start": 2151,
+    "end": 2229,
+    "call": "db.query<RowDataPacket[]>('SELECT role FROM users WHERE id = ? LIMIT 1', [id])",
+    "sql": "'SELECT role FROM users WHERE id = ? LIMIT 1'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 61,
+    "start": 2506,
+    "end": 2587,
+    "call": "db.query(`UPDATE users SET role = ?, updatedAt = NOW() WHERE id = ?`, [role, id])",
+    "sql": "`UPDATE users SET role = ?, updatedAt = NOW() WHERE id = ?`",
+    "args": "[role, id]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 71,
+    "start": 2858,
+    "end": 2959,
+    "call": "db.query<RowDataPacket[]>(\n      `SELECT * FROM user_module_permissions WHERE userId = ?`, [id]\n    )",
+    "sql": "`SELECT * FROM user_module_permissions WHERE userId = ?`",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 105,
+    "start": 4415,
+    "end": 4487,
+    "call": "db.query('SHOW COLUMNS FROM user_module_permissions LIKE \\'dataScope\\'')",
+    "sql": "'SHOW COLUMNS FROM user_module_permissions LIKE \\'dataScope\\''"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 106,
+    "start": 4590,
+    "end": 4687,
+    "call": "db.query('ALTER TABLE user_module_permissions MODIFY dataScope VARCHAR(30) NULL DEFAULT \\'OWN\\'')",
+    "sql": "'ALTER TABLE user_module_permissions MODIFY dataScope VARCHAR(30) NULL DEFAULT \\'OWN\\''"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 108,
+    "start": 4726,
+    "end": 4804,
+    "call": "db.query<RowDataPacket[]>('SELECT role FROM users WHERE id = ? LIMIT 1', [id])",
+    "sql": "'SELECT role FROM users WHERE id = ? LIMIT 1'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 117,
+    "start": 5278,
+    "end": 5408,
+    "call": "connection.query(\n          `SELECT id FROM user_module_permissions WHERE userId = ? AND moduleId = ?`, [id, p.moduleId]\n        )",
+    "sql": "`SELECT id FROM user_module_permissions WHERE userId = ? AND moduleId = ?`",
+    "args": "[id, p.moduleId]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 122,
+    "start": 5473,
+    "end": 5997,
+    "call": "connection.query(\n            `UPDATE user_module_permissions SET\n              moduleAccess=?, canView=?, canCreate=?, canEdit=?,\n              canDelete=?, canApprove=?, canExport=?, dataScope=?, updatedAt=NOW()\n             WHERE userId=? AND moduleId=?`,\n            [\n              p.moduleAccess ? 1 : 0, p.canView ? 1 : 0, p.canCreate ? 1 : 0,\n              p.canEdit ? 1 : 0, p.canDelete ? 1 : 0, p.canApprove ? 1 : 0,\n              p.canExport ? 1 : 0, p.dataScope || 'OWN', id, p.moduleId\n            ]\n          )",
+    "sql": "`UPDATE user_module_permissions SET\n              moduleAccess=?, canView=?, canCreate=?, canEdit=?,\n              canDelete=?, canApprove=?, canExport=?, dataScope=?, updatedAt=NOW()\n             WHERE userId=? AND moduleId=?`",
+    "args": "[\n              p.moduleAccess ? 1 : 0, p.canView ? 1 : 0, p.canCreate ? 1 : 0,\n              p.canEdit ? 1 : 0, p.canDelete ? 1 : 0, p.canApprove ? 1 : 0,\n              p.canExport ? 1 : 0, p.dataScope || 'OWN', id, p.moduleId\n            ]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 134,
+    "start": 6032,
+    "end": 6569,
+    "call": "connection.query(\n            `INSERT INTO user_module_permissions\n              (id, userId, moduleId, moduleAccess, canView, canCreate, canEdit, canDelete, canApprove, canExport, dataScope)\n             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,\n            [\n              uuidv4(), id, p.moduleId,\n              p.moduleAccess ? 1 : 0, p.canView ? 1 : 0, p.canCreate ? 1 : 0,\n              p.canEdit ? 1 : 0, p.canDelete ? 1 : 0, p.canApprove ? 1 : 0,\n              p.canExport ? 1 : 0, p.dataScope || 'OWN'\n            ]\n          )",
+    "sql": "`INSERT INTO user_module_permissions\n              (id, userId, moduleId, moduleAccess, canView, canCreate, canEdit, canDelete, canApprove, canExport, dataScope)\n             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`",
+    "args": "[\n              uuidv4(), id, p.moduleId,\n              p.moduleAccess ? 1 : 0, p.canView ? 1 : 0, p.canCreate ? 1 : 0,\n              p.canEdit ? 1 : 0, p.canDelete ? 1 : 0, p.canApprove ? 1 : 0,\n              p.canExport ? 1 : 0, p.dataScope || 'OWN'\n            ]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 165,
+    "start": 7151,
+    "end": 7229,
+    "call": "db.query<RowDataPacket[]>('SELECT role FROM users WHERE id = ? LIMIT 1', [id])",
+    "sql": "'SELECT role FROM users WHERE id = ? LIMIT 1'",
+    "args": "[id]"
+  },
+  {
+    "p": "backend/src/modules/access_control/access_control.controller.ts",
+    "line": 173,
+    "start": 7553,
+    "end": 7650,
+    "call": "db.query(`UPDATE users SET isActive = ?, updatedAt = NOW() WHERE id = ?`, [isActive ? 1 : 0, id])",
+    "sql": "`UPDATE users SET isActive = ?, updatedAt = NOW() WHERE id = ?`",
+    "args": "[isActive ? 1 : 0, id]"
+  }
+]

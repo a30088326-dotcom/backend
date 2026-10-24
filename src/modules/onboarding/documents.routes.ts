@@ -4,11 +4,12 @@ import multer from 'multer';
 import { db } from '../../lib/db';
 import { RowDataPacket } from 'mysql2';
 import { v4 as uuidv4 } from 'uuid';
-import { requireAuth, requireAdmin, generateToken } from '../../middleware/auth';
+import { requireAuth, generateToken } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { verifyDocumentSchema } from '../../lib/validations';
 import { sendEmail } from '../../lib/email';
 import { requireModuleAction, canManageCandidate } from '../../middleware/module-action';
+import { portableFileUrl } from './files.routes';
 
 type DocumentType = 'NATIONAL_ID' | 'BANK_STATEMENT' | 'PASSPORT_PHOTO' | 'EMPLOYMENT_DOCS' | 'PREVIOUS_SERVICE' | 'OTHER';
 const MAX_DOCUMENTS_PER_TYPE = 4;
@@ -113,7 +114,7 @@ router.post(
       }
 
       const filename = req.file.filename;
-      const url = `http://localhost:${process.env.PORT || 3001}/uploads/${filename}`;
+      const url = `/api/files/${encodeURIComponent(filename)}`;
 
       const fileSizeKB = Math.round(req.file.size / 1024);
       const fileSize = fileSizeKB > 1024
@@ -190,6 +191,7 @@ router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> 
     
     const documents = rows.map((row) => ({
       ...row,
+      fileUrl: portableFileUrl(row.fileUrl),
       verifiedBy: row.vb_id ? { id: row.vb_id, name: row.vb_name } : null
     }));
 
@@ -302,7 +304,7 @@ router.patch(
 router.post(
   '/:id/request-reupload',
   requireAuth,
-  requireAdmin,
+  requireModuleAction('document_verification', 'canEdit'),
   async (req: Request, res: Response): Promise<void> => {
     const id = req.params.id as string;
     try {
@@ -321,6 +323,10 @@ router.post(
       if (!document) {
         res.status(404).json({ success: false, message: 'Document not found' });
         return;
+      }
+
+      if(!await canManageCandidate(req.user!,document.candidateId,'document_verification')){
+        res.status(403).json({success:false,message:'This candidate is outside your document verification access.'});return;
       }
 
       if (document.candidate?.email) {

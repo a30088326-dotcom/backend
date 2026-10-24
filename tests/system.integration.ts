@@ -35,6 +35,7 @@ async function main() {
     process.env.DATABASE_URL = source.toString(); process.env.JWT_SECRET = randomBytes(32).toString('hex');
     // Do not email real staff from the copied database.
     process.env.SMTP_USER = ''; process.env.SMTP_PASS = '';
+    process.env.CLOUDINARY_CLOUD_NAME = ''; process.env.CLOUDINARY_API_KEY = ''; process.env.CLOUDINARY_API_SECRET = '';
     process.env.PORT = '3107';
     const { db } = await import('../src/lib/db'); pool = db;
     await (await import('../src/modules/employee_information/profile-requests')).ensureProfileRequestStorage();
@@ -48,16 +49,23 @@ async function main() {
       await db.query('INSERT INTO users (id,email,password,name,role,isActive,mustChangePassword,createdAt,updatedAt) VALUES (?,?,?,?,?,1,0,NOW(),NOW())', [ids[who], `audit-${who}@example.test`, await bcrypt.hash(password, 10), `Audit ${who}`, role]);
       tokens[who] = generateToken({ userId: ids[who], email: `audit-${who}@example.test`, role });
     }
-    const [[department]]: any = await db.query("SELECT id,name FROM eim_structures WHERE structureType='Department' LIMIT 1");
-    const [[designation]]: any = await db.query('SELECT id,name FROM designations LIMIT 1');
-    const [[employmentType]]: any = await db.query('SELECT id,name FROM employment_types LIMIT 1');
+    // A fresh local installation has no master data. Keep this audit independent
+    // of real company configuration by creating fixtures only in its private copy.
+    const department = { id: randomUUID(), name: 'Audit department' };
+    const designation = { id: randomUUID(), name: 'Audit designation' };
+    const employmentType = { id: randomUUID(), name: 'Audit employment type' };
+    await db.query("INSERT INTO eim_structures (id,name,structureType) VALUES (?,?,'Department')", [department.id, department.name]);
+    await db.query('INSERT INTO designations (id,name) VALUES (?,?)', [designation.id, designation.name]);
+    await db.query('INSERT INTO employment_types (id,name,code) VALUES (?,?,?)', [employmentType.id, employmentType.name, `AUDIT-${employmentType.id.slice(0,8)}`]);
     for (const who of ['admin', 'manager', 'outsider'] as const) {
       await db.query(`INSERT INTO employee_information_employees (id,userId,employeeNo,employeeNumber,firstName,lastName,status,employeeStatus,isActive,organizationalRank,dateJoined,departmentId,department,designationId,designation) VALUES (?,?,?,?,'Audit',?,'Active','Active',1,?,'2024-01-01',?,?,?,?)`, [ids[who], ids[who], `AUDIT-${who}`, `AUDIT-${who}`, who, who === 'manager' ? 'MANAGER' : 'EMPLOYEE', department.id, department.name, designation.id, designation.name]);
     }
     const express = (await import('express')).default; const app = express();
     app.use((await import('cors')).default({origin:['http://localhost:5181','http://127.0.0.1:5181']}));
     app.use(express.json());
-    app.use('/uploads',express.static(resolve('uploads')));
+    const filesRoutes=(await import('../src/modules/onboarding/files.routes')).default;
+    app.use('/uploads',filesRoutes);
+    app.use('/api/files',filesRoutes);
     const routes: Record<string, string> = {
       auth: 'auth/auth.routes', users: 'auth/users.routes', invites: 'onboarding/invites.routes', onboarding: 'onboarding/onboarding.routes', documents: 'onboarding/documents.routes', contracts: 'onboarding/contracts.routes',
       'employee_information/audit': 'employee_information/employee_information_audit.routes', leaves: 'leave-management/routes/index', 'leave-management': 'leave/leave.routes', attendance: 'attendance/attendance.routes', eim: 'eim/eim.routes', 'reporting-hierarchy': 'reporting_hierarchy/reporting_hierarchy.routes', 'access-control': 'access_control/access_control.routes', performance: 'performance/performance.routes', assistant: 'assistant/routes'
@@ -83,12 +91,75 @@ async function main() {
     }, 201);
     const employeeId = created.data?.id;
     if (!employeeId) throw new Error('Demo employee creation failed; cannot continue employee workflows.');
-    const onboarding={firstName:'Audit',lastName:'Outsider',dateOfBirth:'2000-01-01',gender:'Male',nationality:'Sri Lankan',addressLine1:'Audit road',city:'Colombo',phoneNumber:'0770000000',emergencyContactName:'Audit parent',emergencyContactRelation:'Father',emergencyContactPhone:'0770000001',bankName:'Audit bank',accountHolderName:'Audit outsider',accountNumber:'12345678',accountType:'SAVINGS',currency:'LKR'};
+    const mappingCode=`MAP-${randomUUID().slice(0,8)}`;
+    await request('admin','POST','/api/eim/companies',{code:mappingCode,name:`Audit company ${mappingCode}`,country:'Sri Lanka',isActive:true},201);
+    const companies=await request('admin','GET','/api/eim/companies');
+    const mappingCompany=companies.data.find((row:any)=>row.code===mappingCode);
+    await request('admin','POST','/api/eim/locations',{code:mappingCode+'L',name:`Audit location ${mappingCode}`,companyId:mappingCompany.id,isActive:true},201);
+    const locations=await request('admin','GET','/api/eim/locations');
+    const mappingLocation=locations.data.find((row:any)=>row.code===mappingCode+'L');
+    await request('admin','PUT',`/api/eim/structures/${department.id}`,{code:mappingCode+'D',name:department.name,structureType:'Department',companyId:mappingCompany.id,locationId:mappingLocation.id,isActive:true});
+    await request('admin','PUT',`/api/employee_information/audit/${employeeId}`,{employmentDetails:{companyId:mappingCompany.id},workstationDetails:{locationId:mappingLocation.id,departmentId:department.id,designationId:designation.id,supervisorId:ids.manager}});
+    const mappedEmployee=await request('employee','GET','/api/employee_information/audit/me');
+    check('New EIM company/location/department values map into the saved employee self-view',()=>{assert.equal(mappedEmployee.data.workstationDetails.companyId,mappingCompany.id);assert.equal(mappedEmployee.data.workstationDetails.locationId,mappingLocation.id);assert.equal(mappedEmployee.data.workstationDetails.departmentId,department.id);assert.equal(mappedEmployee.data.workstationDetails.designationId,designation.id);});
+    const [[savedMapping]]:any=await db.query('SELECT companyId,locationId,departmentId,designationId FROM employee_information_workstation_details WHERE employeeId=?',[employeeId]);
+    check('Employee EIM mappings are stored in MySQL',()=>{assert.equal(savedMapping.companyId,mappingCompany.id);assert.equal(savedMapping.locationId,mappingLocation.id);assert.equal(savedMapping.departmentId,department.id);assert.equal(savedMapping.designationId,designation.id);});
+    await request('admin','PUT',`/api/employee_information/audit/${employeeId}`,{employmentDetails:{companyId:null},workstationDetails:{locationId:null}});
+    const onboarding={firstName:'Audit',lastName:'Outsider',dateOfBirth:'2000-01-01',gender:'Male',nationality:'Sri Lankan',addressLine1:'Audit road',addressLine2:'Test second line',city:'Colombo',postalCode:'00100',phoneNumber:'0770000000',alternatePhone:'0770000002',linkedIn:'https://example.test/profile',emergencyContactName:'Audit parent',emergencyContactRelation:'Father',emergencyContactPhone:'0770000001',bankName:'Audit bank',accountHolderName:'Different Bank Account Holder',accountNumber:'12345678',accountType:'CHECKING',currency:'LKR'};
     await request('outsider','POST','/api/onboarding',{...onboarding,emergencyContactRelation:'Friend'},400);
     await request('outsider','POST','/api/onboarding',{...onboarding,dateOfBirth:'2000-02-30'},400);
     await request('outsider','POST','/api/onboarding',onboarding,201);
     const onboardingSaved=await request('outsider','GET','/api/onboarding');
     check('Onboarding contact and bank fields persist',()=>{assert.equal(onboardingSaved.data.emergencyContactRelation,'Father');assert.equal(onboardingSaved.data.accountNumber,'12345678');});
+    const ownOnboarding = await request('outsider','GET','/api/employee_information/audit/me');
+    check('Employee self-view includes all submitted contact fields',()=>{
+      const contact=ownOnboarding.data.contactDetails;
+      assert.equal(contact.permanent.address,'Audit road Test second line');
+      assert.equal(contact.permanent.postalCode,onboarding.postalCode);
+      assert.equal(contact.residential.personal.mobile,onboarding.phoneNumber);
+      assert.equal(contact.residential.personal.alternatePhone,onboarding.alternatePhone);
+      assert.equal(contact.residential.personal.email,'audit-outsider@example.test');
+      assert.equal(contact.linkedIn,onboarding.linkedIn);
+      assert.equal(contact.residential.emergencyContacts[0].relationship,'Father');
+    });
+    const mappingUser=randomUUID();
+    await db.query("INSERT INTO users (id,email,name,password,role,isActive) VALUES (?,?,?,'test-only','CANDIDATE',1)",[mappingUser,'audit-mapping@example.test','Mapping Test']);
+    tokens.mapping=generateToken({userId:mappingUser,email:'audit-mapping@example.test',role:'CANDIDATE'});
+    const lookupGenderId=randomUUID(),locationId=randomUUID();
+    await db.query("INSERT INTO eim_genders (id,code,name) VALUES (?,?,'Male')",[lookupGenderId,`AUDIT-${lookupGenderId.slice(0,8)}`]);
+    await db.query("INSERT INTO eim_locations (id,code,name) VALUES (?,?,'Audit office')",[locationId,`AUDIT-${locationId.slice(0,8)}`]);
+    await request('mapping','POST','/api/onboarding',onboarding,201);
+    const contract=await request('admin','POST','/api/contracts',{
+      candidateId:mappingUser,title:'Non-binding software test fixture',
+      templateContent:'NON-BINDING SOFTWARE TEST ONLY. No employment offer or agreement.',fieldValues:{}
+    },201);
+    await request('mapping','POST',`/api/contracts/${contract.data.id}/sign`,{signatureDataUrl:'data:image/png;base64,dGVzdC1vbmx5'});
+    const [[signedCandidate]]:any=await db.query('SELECT role FROM users WHERE id=?',[mappingUser]);
+    check('Signing does not hide an unactivated candidate from HR onboarding',()=>assert.equal(signedCandidate.role,'CANDIDATE'));
+    const mapped=await request('admin','POST','/api/employee_information/audit',{userId:mappingUser,employmentDetails:{dateJoined:'2024-01-01',probationStatus:'Confirmed'},workstationDetails:{locationId}},201);
+    if (!mapped.data?.id) throw new Error('Onboarding-to-employee mapping failed.');
+    const mappedId=mapped.data.id;
+    const mappedDetails=await request('admin','GET',`/api/employee_information/audit/${mappedId}`);
+    check('Employee conversion preserves bank account holder and all onboarding contact fields',()=>{
+      assert.equal(mappedDetails.data.bankDetails[0].accountHolderName,onboarding.accountHolderName);
+      assert.equal(mappedDetails.data.bankDetails[0].accountType,onboarding.accountType);
+      assert.equal(mappedDetails.data.contactDetails.residential.personal.alternatePhone,onboarding.alternatePhone);
+      assert.equal(mappedDetails.data.contactDetails.linkedIn,onboarding.linkedIn);
+      assert.equal(mappedDetails.data.personalDetails.nationality,onboarding.nationality);
+    });
+    await db.query('UPDATE employee_information_personal_details SET gender=? WHERE employeeId=?',[lookupGenderId,mappedId]);
+    const ownMapped=await request('mapping','GET','/api/employee_information/audit/me');
+    check('Employee view resolves onboarding lookup IDs and assigned office labels',()=>{
+      assert.equal(ownMapped.data.personalDetails.gender,'Male');
+      assert.equal(ownMapped.data.workstationDetails.locationName,'Audit office');
+      assert.equal(ownMapped.data.bankDetails[0].accountHolderName,onboarding.accountHolderName);
+    });
+    await request('admin','PUT',`/api/employee_information/audit/${mappedId}`,{payrollDetails:{bankDetails:{bank:'Edited test bank',accountName:'Edited Account Holder',accountNumber:'98765432',accountType:'Checking',currency:'USD'}}});
+    const editedBank=await request('admin','GET',`/api/employee_information/audit/${mappedId}`);
+    check('Bank account holder and currency survive an employee edit and reload',()=>{
+      assert.equal(editedBank.data.bankDetails[0].accountHolderName,'Edited Account Holder');
+      assert.equal(editedBank.data.bankDetails[0].currency,'USD');
+    });
     check('New employee canonical mapping', () => {
       assert.equal(created.data.firstName, 'Audit'); assert.equal(created.data.departmentId, department.id);
       assert.equal(created.data.designationId, designation.id); assert.ok(created.data.employeeNumber);
@@ -115,6 +186,21 @@ async function main() {
     await upload('outsider',`/api/employee_information/audit/attachments/${employeeId}`,'files',undefined,403);
     const documents=[];
     for(let i=0;i<4;i++)documents.push(await upload('employee','/api/documents/upload','file','NATIONAL_ID'));
+    const protectedUrl=documents[0]?.data?.fileUrl;
+    if(protectedUrl){
+      check('Uploaded document URL is portable',()=>assert.ok(protectedUrl.startsWith('/api/files/')));
+      for(const [who,status] of [['anonymous',401],['outsider',404],['employee',200],['admin',200]] as const){
+        const response=await fetch(`http://127.0.0.1:3107${protectedUrl}`,{method:'HEAD',headers:tokens[who]?{Authorization:`Bearer ${tokens[who]}`}:{}});
+        check(`${who} protected document access`,()=>assert.equal(response.status,status));
+        if(status===200)check(`${who} file is not publicly cached`,()=>assert.equal(response.headers.get('cache-control'),'private, no-store'));
+      }
+      const legacy=protectedUrl.replace('/api/files/','/uploads/');
+      const response=await fetch(`http://127.0.0.1:3107${legacy}`,{method:'HEAD'});
+      check('Legacy uploaded URL also requires login',()=>assert.equal(response.status,401));
+      await db.query('UPDATE documents SET fileUrl=? WHERE id=?',['http://localhost:3001'+legacy,documents[0].data.id]);
+      const listed=await request('employee','GET','/api/documents');
+      check('Legacy localhost document links are returned as portable paths',()=>assert.equal(listed.data.find((d:any)=>d.id===documents[0].data.id).fileUrl,protectedUrl));
+    }
     await upload('employee','/api/documents/upload','file','NATIONAL_ID',409);
     if(documents[0]?.data?.id)await request('admin','PATCH',`/api/documents/${documents[0].data.id}/verify`,{status:'APPROVED'});
     if(documents[1]?.data?.id)await request('admin','PATCH',`/api/documents/${documents[1].data.id}/verify`,{status:'REJECTED',rejectionNote:'Audit retry'});
@@ -179,14 +265,33 @@ async function main() {
     const [[safe]]:any=await db.query('SELECT nicNo FROM employee_information_personal_details WHERE employeeId=?',[employeeId]);
     check('Stale approval cannot overwrite newer profile details',()=>assert.equal(safe.nicNo,'199800000000'));
     // Create/edit/delete each simple EIM lookup using synthetic names only.
-    for (const resource of ['genders','marital-statuses','nationalities','religions','blood-groups','relationship-types','attachment-types','languages','subjects','qual-types','qual-classifications','rating-methods','proficiency-levels','membership-types','extracurricular-categories']) {
+    for (const resource of ['companies','locations','structures','cost-centres','designations','salary-grades','corporate-titles','employment-types','employee-titles','functions','functional-roles','statutory-classifications','quals','currencies','extracurricular-types','geography','benefits','genders','marital-statuses','nationalities','religions','blood-groups','relationship-types','attachment-types','languages','subjects','qual-types','qual-classifications','rating-methods','proficiency-levels','membership-types','extracurricular-categories']) {
       const name=`Audit ${resource}`;
-      await request('admin','POST',`/api/eim/${resource}`,{name,code:`A${randomUUID().slice(0,7)}`,description:'Synthetic audit',isActive:true},201);
+      await request('admin','POST',`/api/eim/${resource}`,{name,code:`A${randomUUID().slice(0,7)}`,description:'Synthetic audit',isActive:true,structureType:'Department',geoType:'Country',category:'Cash Benefit',isCash:true,defaultAmount:0,currency:'LKR',gradeLevel:1,minSalary:0,maxSalary:100,level:1},201);
       const list = await request('admin','GET',`/api/eim/${resource}`);
       const row = list.data?.find((r:any)=>r.name===name);
       check(`EIM ${resource} persisted`,()=>assert.ok(row?.id));
       if(row) {
         await request('admin','PUT',`/api/eim/${resource}/${row.id}`,{...row,name:`${name} edited`});
+        const refreshed=await request('admin','GET',`/api/eim/${resource}`);
+        check(`EIM ${resource} edit survives reload`,()=>assert.equal(refreshed.data.find((record:any)=>record.id===row.id)?.name,`${name} edited`));
+        if(resource==='benefits'){
+          const gradeCode=`BG-${randomUUID().slice(0,8)}`;
+          await request('admin','POST','/api/eim/salary-grades',{code:gradeCode,name:'Audit benefit grade',gradeLevel:1,minSalary:0,maxSalary:100,currency:'LKR',isActive:true},201);
+          const grades=await request('admin','GET','/api/eim/salary-grades');const grade=grades.data.find((entry:any)=>entry.code===gradeCode);
+          await request('admin','PUT',`/api/eim/benefits/${row.id}`,{...row,defaultAmount:0,eligibleSalaryGrades:[grade.id,grade.id]});
+          const list=await request('admin','GET','/api/eim/benefits');const saved=list.data.find((entry:any)=>entry.id===row.id);
+          check('Benefit salary-grade mappings and zero amount survive reload',()=>{assert.deepEqual(saved.eligibleSalaryGrades,[grade.id]);assert.equal(Number(saved.defaultAmount),0);});
+          const [[links]]:any=await db.query('SELECT COUNT(*) n FROM eim_benefit_salary_grades WHERE benefitId=? AND salaryGradeId=?',[row.id,grade.id]);
+          check('Benefit mapping is stored once in the MySQL junction table',()=>assert.equal(Number(links.n),1));
+          await request('admin','PUT',`/api/eim/benefits/${row.id}`,{...saved,name:'Invalid overwrite',eligibleSalaryGrades:[randomUUID()]},400);
+          const {eligibleSalaryGrades:_grades,...unchanged}=saved;
+          await request('admin','PUT',`/api/eim/benefits/${row.id}`,unchanged);
+          const kept=await request('admin','GET','/api/eim/benefits');
+          check('A benefit edit preserves omitted grade mappings',()=>assert.deepEqual(kept.data.find((entry:any)=>entry.id===row.id).eligibleSalaryGrades,[grade.id]));
+          await request('admin','PUT',`/api/eim/benefits/${row.id}`,{...saved,eligibleSalaryGrades:[]});
+          await request('admin','DELETE',`/api/eim/salary-grades/${grade.id}`);
+        }
         await request('admin','DELETE',`/api/eim/${resource}/${row.id}`);
       }
     }
@@ -198,6 +303,26 @@ async function main() {
     await db.query("INSERT INTO leave_types (id,code,name,color,isActive,allowHalfDays,commentMandatory,yearlyEntitlement,createdAt,updatedAt) VALUES (?,'AUDIT','Audit leave','#2563eb',1,1,1,20,NOW(),NOW())",[leaveTypeId]);
     await db.query('INSERT INTO leave_entitlements (id,userId,leaveTypeId,leaveYearId,totalDays,usedDays,pendingDays,carryForwardDays,earnedDays,createdAt,updatedAt) VALUES (?,?,?,?,20,0,0,0,20,NOW(),NOW())',[randomUUID(),ids.employee,leaveTypeId,leaveYearId]);
     const payload = { leaveTypeId,startDate:'2090-10-10',endDate:'2090-10-10',totalDays:1,reason:'Synthetic audit request' };
+    const directory=await request('employee','GET','/api/leaves/covering-employees');
+    check('Covering directory excludes self and private profile fields',()=>{assert.ok(directory.data.some((person:any)=>person.id===ids.manager));assert.ok(directory.data.every((person:any)=>person.id!==ids.employee&&!('email'in person)&&!('onboardingProfile'in person)));});
+    await db.query('UPDATE leave_types SET requireCoveringEmp=1,requireAttachment=1,needMedicalCertificate=1,maxDaysWithoutMedCert=0,commentMandatory=1 WHERE id=?',[leaveTypeId]);
+    const extra={...payload,startDate:'2090-10-20',endDate:'2090-10-20',totalDays:0.5,halfDayType:'FIRST_HALF',coveringEmployeeId:ids.manager,medCertSubmitted:true,attachmentUrl:attachment.data[0].fileUrl,medCertRefNo:'SYNTHETIC-TEST-CERTIFICATE'};
+    await request('employee','POST','/api/leaves/applications',{...extra,coveringEmployeeId:ids.employee},400);
+    await request('employee','POST','/api/leaves/applications',{...extra,attachmentUrl:'/api/files/not-owned.png'},400);
+    await request('employee','POST','/api/leaves/applications',{...extra,attachmentUrl:undefined},400);
+    const advanced=await request('employee','POST','/api/leaves/applications',extra,201);
+    if(advanced.data?.id){
+      const [[stored]]:any=await db.query('SELECT * FROM leave_applications WHERE id=?',[advanced.data.id]);
+      check('Half-day, covering employee and medical document persist',()=>{assert.equal(Number(stored.totalDays),0.5);assert.equal(stored.halfDayType,'FIRST_HALF');assert.equal(stored.coveringEmployeeId,ids.manager);assert.equal(stored.medCertRefNo,extra.medCertRefNo);assert.ok(stored.attachmentUrl.startsWith('/api/files/'));});
+      const pending=await request('manager','GET','/api/leaves/team/dashboard');
+      check('Approver receives supporting document and half-day details',()=>assert.ok(pending.data.pendingApprovals.some((record:any)=>record.id===advanced.data.id&&record.attachmentUrl===stored.attachmentUrl&&record.halfDayType==='FIRST_HALF')));
+      for(const [who,status]of [['manager',200],['outsider',404]] as const){const response=await fetch(`http://127.0.0.1:3107${stored.attachmentUrl}`,{method:'HEAD',headers:{Authorization:`Bearer ${tokens[who]}`}});check(`${who} leave document access`,()=>assert.equal(response.status,status));}
+      await request('manager','PATCH',`/api/leaves/applications/${advanced.data.id}/approve`,{action:'APPROVED'});
+      await request('employee','PATCH',`/api/leaves/applications/${advanced.data.id}/cancel`,{cancelReason:'Synthetic half-day test complete'});
+      const [[released]]:any=await db.query('SELECT usedDays,pendingDays FROM leave_entitlements WHERE userId=? AND leaveTypeId=?',[ids.employee,leaveTypeId]);
+      check('Half-day approval and cancellation restore the balance',()=>{assert.equal(Number(released.usedDays),0);assert.equal(Number(released.pendingDays),0);});
+    }
+    await db.query('UPDATE leave_types SET requireCoveringEmp=0,requireAttachment=0,needMedicalCertificate=0 WHERE id=?',[leaveTypeId]);
     const leave = await request('employee','POST','/api/leaves/applications',payload,201);
     if (leave.data?.id) {
       check('Leave user/employee/approver mapping',()=>{ assert.equal(leave.data.applicantId,ids.employee);assert.equal(leave.data.employeeId,employeeId);assert.equal(leave.data.approverId,ids.manager); });
@@ -210,6 +335,8 @@ async function main() {
       await request('employee','GET',`/api/leaves/applications/${leave.data.id}/history`);
       const [[balance]]:any = await db.query('SELECT usedDays,pendingDays FROM leave_entitlements WHERE userId=? AND leaveTypeId=?',[ids.employee,leaveTypeId]);
       check('Approval updates balance once',()=>{assert.equal(Number(balance.usedDays),1);assert.equal(Number(balance.pendingDays),0);});
+      const entitlementReport=await request('admin','GET','/api/leave-management/reports/entitlements');
+      check('HR balance report shows the active-year available balance after approval',()=>{const row=entitlementReport.data.find((entry:any)=>entry.employeeId===created.data.employeeNo);assert.equal(row.balances.AUDIT,19);assert.equal(Number(row.leaveYear),2090);});
     }
     const rejected = await request('employee','POST','/api/leaves/applications',{...payload,startDate:'2090-10-11',endDate:'2090-10-11'},201);
     if (rejected.data?.id) await request('manager','PATCH',`/api/leaves/applications/${rejected.data.id}/approve`,{action:'REJECTED',rejectedReason:'Audit rejection'});
