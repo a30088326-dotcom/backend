@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.env
+.env.*
+uploads
+backups
+repair-audit
+coverage
+*.log
+tests
+scripts
+database
+infrastructure

@@ -30,7 +30,7 @@ export const onboardingProfileSchema = z.object({
   alternatePhone: z.string().optional(),
   linkedIn: z.string().url().optional().or(z.literal('')),
   emergencyContactName: z.string().min(1, 'Emergency contact name is required'),
-  emergencyContactRelation: z.enum(['Father','Mother','Other'],{errorMap:()=>({message:'Choose Father, Mother, or Other for the emergency contact relationship.'})}),
+  emergencyContactRelation: z.enum(['Father','Mother','Other'],{error:'Choose Father, Mother, or Other for the emergency contact relationship.'}),
   emergencyContactPhone: z.string().min(7, 'Emergency contact phone is required'),
   // Bank
   bankName: z.string().min(1, 'Bank name is required'),

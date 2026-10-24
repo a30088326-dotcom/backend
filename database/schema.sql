@@ -1952,3 +1952,41 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;
+-- Assistant extension tables were previously created lazily at runtime.
+CREATE TABLE `hr_assistant_collections` (
+  `id` varchar(36) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `fields` json NOT NULL,
+  `created_by` varchar(191) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `assistant_collection_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `hr_assistant_collection_rows` (
+  `id` varchar(36) NOT NULL,
+  `collection_id` varchar(36) NOT NULL,
+  `employee_id` varchar(191) DEFAULT NULL,
+  `data` json NOT NULL,
+  `created_by` varchar(191) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Employment transitions are referenced by the probation confirmation feature.
+CREATE TABLE `employee_information_employment_type_transitions` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `employeeId` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `previousEmploymentType` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `newEmploymentType` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `effectiveDate` date NOT NULL,
+  `previousLeaveGroupId` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `newLeaveGroupId` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `appliedScripts` json DEFAULT NULL,
+  `calculatedEntitlements` json DEFAULT NULL,
+  `performedBy` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `employment_transition_employee` (`employeeId`),
+  CONSTRAINT `employment_transition_employee_fk` FOREIGN KEY (`employeeId`) REFERENCES `employee_information_employees` (`id`),
+  CONSTRAINT `employment_transition_actor_fk` FOREIGN KEY (`performedBy`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

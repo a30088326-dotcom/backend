@@ -830,6 +830,27 @@
         "name": "id",
         "type": "S"
       }
+    },
+    {
+      "name": "hr_assistant_collections",
+      "partitionKey": {
+        "name": "id",
+        "type": "S"
+      }
+    },
+    {
+      "name": "hr_assistant_collection_rows",
+      "partitionKey": {
+        "name": "id",
+        "type": "S"
+      }
+    },
+    {
+      "name": "employee_information_employment_type_transitions",
+      "partitionKey": {
+        "name": "id",
+        "type": "S"
+      }
     }
   ]
 }

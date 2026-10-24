@@ -39,8 +39,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 
@@ -91,7 +91,7 @@ app.listen(PORT, () => {
   console.log('');
   console.log(`  🚀 Server running at:  http://localhost:${PORT}`);
   console.log(`  🏥 Health check:       http://localhost:${PORT}/health`);
-  console.log(`  🗄️  Database:           Raw MySQL`);
+  console.log(`  🗄️  Database:           ${process.env.DATABASE_PROVIDER === 'dynamodb' ? 'DynamoDB' : 'Local MySQL'}`);
   console.log(`  🌍 Frontend CORS:      ${process.env.FRONTEND_URL ?? 'http://localhost:5174'}`);
   console.log('');
 });

@@ -5,13 +5,15 @@ import type { Context, Tool, Settings, Permission } from './types';
 import { ensure } from './types';
 import { closest } from './matching';
 import { isOrganizationScope } from '../../shared/services/access-scope';
+import { repository } from '../../storage/repository';
 
 export async function contextFor(userId: string, authorization = ''): Promise<Context> {
-  const [[user]] = await db.query<RowDataPacket[]>('SELECT id, name, role, isActive, mustChangePassword FROM users WHERE id=?', [userId]);
+  const native = process.env.DATABASE_PROVIDER === 'dynamodb';
+  const user = native ? await repository().get('users', { id:userId }) : (await db.query<RowDataPacket[]>('SELECT id, name, role, isActive, mustChangePassword FROM users WHERE id=?', [userId]))[0][0];
   ensure(user?.isActive && ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'].includes(user.role), 'Active staff access is required.', 403);
   ensure(!user.mustChangePassword, 'Complete your initial password change before using the assistant.', 403);
   const a = await organizationAccess(userId);
-  const [permissions] = await db.query<RowDataPacket[]>('SELECT moduleId,moduleAccess,canView,canCreate,canEdit,canDelete,canApprove,canExport,dataScope FROM user_module_permissions WHERE userId=?', [userId]);
+  const permissions = native ? await repository().find('user_module_permissions', row => row.userId === userId) : (await db.query<RowDataPacket[]>('SELECT moduleId,moduleAccess,canView,canCreate,canEdit,canDelete,canApprove,canExport,dataScope FROM user_module_permissions WHERE userId=?', [userId]))[0];
   return { userId, name: user.name, role: user.role, employeeId: a.employeeId, admin: a.admin, superAdmin: user.role === 'SUPER_ADMIN', executive: a.isExecutive, manager: a.isManager, employees: a.employees, visibleIds: a.visibleIds, permissions, authorization };
 }
 export function moduleAllowed(c: Context, module: string, permission: Permission) {

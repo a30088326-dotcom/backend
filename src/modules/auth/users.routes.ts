@@ -6,7 +6,9 @@ import { z } from 'zod';
 import { sendEmail } from '../../lib/email';
 
 import { organizationAccess } from '../../shared/services/organization.service';
+import nativeRoutes from './users.dynamo';
 const router = Router();
+router.use((req, res, next) => process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRoutes(req, res, next) : next());
 const htmlText = (value: string) => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
 const editUserSchema = z.object({
   name: z.string().trim().min(1).max(255).optional(),

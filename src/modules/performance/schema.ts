@@ -4,6 +4,7 @@ import { db } from '../../lib/db';
 // No existing HR table or row is modified by this additive migration.
 let pending: Promise<void> | undefined;
 export function ensurePerformanceSchema() {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return Promise.resolve();
   if (!pending) pending = migrate().catch(error => { pending = undefined; throw error; });
   return pending;
 }

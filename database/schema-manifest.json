@@ -63,6 +63,7 @@
     "employee_information_contact_details",
     "employee_information_employee_attachments",
     "employee_information_employees",
+    "employee_information_employment_type_transitions",
     "employee_information_personal_details",
     "employee_information_resignation_details",
     "employee_information_workstation_details",
@@ -73,6 +74,8 @@
     "holidaycalendar",
     "hr_assistant_actions",
     "hr_assistant_changes",
+    "hr_assistant_collection_rows",
+    "hr_assistant_collections",
     "hr_assistant_conversations",
     "hr_assistant_extensions",
     "hr_assistant_field_values",
@@ -129,6 +132,20 @@
       "columnName": "reportingManagerId",
       "constraintName": "fk_emp_reporting_manager",
       "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "employee_information_employment_type_transitions",
+      "columnName": "employeeId",
+      "constraintName": "employment_transition_employee_fk",
+      "referencedTable": "employee_information_employees",
+      "referencedColumn": "id"
+    },
+    {
+      "tableName": "employee_information_employment_type_transitions",
+      "columnName": "performedBy",
+      "constraintName": "employment_transition_actor_fk",
+      "referencedTable": "users",
       "referencedColumn": "id"
     },
     {
@@ -210,22 +227,15 @@
     },
     {
       "tableName": "performance_development_plans",
-      "columnName": "performance_cycle_id",
-      "constraintName": "performance_development_plans_ibfk_1",
-      "referencedTable": "performance_cycles",
-      "referencedColumn": "id"
-    },
-    {
-      "tableName": "performance_development_plans",
       "columnName": "employee_id",
       "constraintName": "performance_development_plans_ibfk_2",
       "referencedTable": "employee_information_employees",
       "referencedColumn": "id"
     },
     {
-      "tableName": "performance_feedback",
+      "tableName": "performance_development_plans",
       "columnName": "performance_cycle_id",
-      "constraintName": "performance_feedback_ibfk_1",
+      "constraintName": "performance_development_plans_ibfk_1",
       "referencedTable": "performance_cycles",
       "referencedColumn": "id"
     },
@@ -244,6 +254,13 @@
       "referencedColumn": "id"
     },
     {
+      "tableName": "performance_feedback",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_feedback_ibfk_1",
+      "referencedTable": "performance_cycles",
+      "referencedColumn": "id"
+    },
+    {
       "tableName": "performance_goal_checkins",
       "columnName": "created_by",
       "constraintName": "fk_perf_goal_checkins_created_by",
@@ -259,16 +276,16 @@
     },
     {
       "tableName": "performance_goals",
-      "columnName": "performance_cycle_id",
-      "constraintName": "performance_goals_ibfk_1",
-      "referencedTable": "performance_cycles",
+      "columnName": "employee_id",
+      "constraintName": "performance_goals_ibfk_2",
+      "referencedTable": "employee_information_employees",
       "referencedColumn": "id"
     },
     {
       "tableName": "performance_goals",
-      "columnName": "employee_id",
-      "constraintName": "performance_goals_ibfk_2",
-      "referencedTable": "employee_information_employees",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_goals_ibfk_1",
+      "referencedTable": "performance_cycles",
       "referencedColumn": "id"
     },
     {
@@ -329,16 +346,16 @@
     },
     {
       "tableName": "performance_reviews",
-      "columnName": "performance_cycle_id",
-      "constraintName": "performance_reviews_ibfk_1",
-      "referencedTable": "performance_cycles",
+      "columnName": "employee_id",
+      "constraintName": "performance_reviews_ibfk_2",
+      "referencedTable": "employee_information_employees",
       "referencedColumn": "id"
     },
     {
       "tableName": "performance_reviews",
-      "columnName": "employee_id",
-      "constraintName": "performance_reviews_ibfk_2",
-      "referencedTable": "employee_information_employees",
+      "columnName": "performance_cycle_id",
+      "constraintName": "performance_reviews_ibfk_1",
+      "referencedTable": "performance_cycles",
       "referencedColumn": "id"
     },
     {

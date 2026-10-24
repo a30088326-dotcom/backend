@@ -57,6 +57,7 @@ export class DynamoStore {
   }
 
   createItem(entity: EntityName, item: Document): TransactionItem {
+    this.validateSize(item);
     this.key(entity, item);
     const definition: TableDefinition = tableDefinitions[entity];
     return { Put: { TableName: this.tableName(entity), Item: { ...item, _version: 1 },
@@ -64,6 +65,7 @@ export class DynamoStore {
   }
 
   replaceItem(entity: EntityName, item: StoredDocument): TransactionItem {
+    this.validateSize(item);
     this.key(entity, item);
     this.validateVersion(item._version);
     return { Put: { TableName: this.tableName(entity), Item: { ...item, _version: item._version + 1 },
@@ -80,6 +82,11 @@ export class DynamoStore {
 
   private validateVersion(version: number) {
     if (!Number.isSafeInteger(version) || version < 1) throw new Error('A stored record version is required for changes.');
+  }
+
+  private validateSize(item: Document) {
+    // Conservative JSON bound leaves room for DynamoDB attribute/type overhead.
+    if (Buffer.byteLength(JSON.stringify(item), 'utf8') > 350 * 1024) throw Object.assign(new Error('This record is too large. Reduce its text or collection size before saving.'), { status: 413 });
   }
 
   private conflict(error: unknown): never {
@@ -111,6 +118,7 @@ export class DynamoStore {
   async transact(items: TransactionItem[], token = randomUUID()): Promise<void> {
     if (items.length === 0) return;
     if (items.length > 100) throw new Error('A DynamoDB transaction can contain at most 100 record operations.');
+    if (Buffer.byteLength(JSON.stringify(items), 'utf8') > 3500 * 1024) throw Object.assign(new Error('This update is too large to save atomically. Reduce the number or size of selected records.'), { status: 413 });
     const addresses = items.map(item => {
       const operation = item.Put || item.Delete || item.Update || item.ConditionCheck;
       if (!operation) throw new Error('Invalid transaction operation.');

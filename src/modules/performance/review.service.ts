@@ -102,7 +102,7 @@ export async function changeReview(actor: Actor, id: string, input: unknown) {
         await store.notify(review.employeeId, id, `Your ${cycle.name} review is closed and ready for acknowledgement.`, actor, connection);
       } else if (action === 'remind') {
         ensure(manage, 'Only the manager or HR can send reminders.', 403);
-        const [recent] = await connection.query<any[]>('SELECT id FROM hr_performance_audit WHERE entity_id = ? AND event = ? AND at > DATE_SUB(NOW(), INTERVAL 1 DAY)', [id, 'REMIND']);
+        const recent = await store.history(id, connection, true);
         ensure(!recent.length, 'A reminder has already been sent in the last 24 hours.', 409);
         if (!review.self.sharedAt) await store.notify(review.employeeId, id, `Reminder: share your self-assessment for ${cycle.name} (due ${cycle.selfDeadline}).`, actor, connection);
         else if (!review.manager.sharedAt) {

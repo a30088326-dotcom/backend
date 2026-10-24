@@ -3,8 +3,10 @@ import { db } from '../../lib/db';
 import { RowDataPacket } from 'mysql2';
 import { LeaveRulesEvaluator } from '../leave-management/services/leaveRulesEvaluator';
 import { v4 as uuidv4 } from 'uuid';
+import { processEntitlementsNative, entitlementsReportNative } from './entitlements.native';
 
 export const processEntitlementsForEmployee = async (employeeId: string) => {
+  if(process.env.DATABASE_PROVIDER==='dynamodb')return processEntitlementsNative(employeeId);
   const [empRows] = await db.query<RowDataPacket[]>('SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1', [employeeId]);
   const employee = empRows[0];
   if (!employee) throw new Error('Employee not found');
@@ -96,6 +98,7 @@ export const generateEntitlements = async (req: Request, res: Response) => {
 
 export const getEntitlementsReport = async (req: Request, res: Response) => {
   try {
+    if(process.env.DATABASE_PROVIDER==='dynamodb')return res.json({success:true,data:await entitlementsReportNative()});
     const [users] = await db.query<RowDataPacket[]>(`SELECT u.id,u.name,u.role FROM users u JOIN employee_information_employees e ON e.userId=u.id WHERE u.role<>'CANDIDATE' AND u.isActive=1 AND e.isActive=1`);
     const [years] = await db.query<RowDataPacket[]>('SELECT id,year FROM leave_years WHERE isActive=1 ORDER BY year DESC LIMIT 1');
     const [entitlements] = await db.query<RowDataPacket[]>('SELECT * FROM leave_entitlements WHERE leaveYearId=?',[years[0]?.id||'']);

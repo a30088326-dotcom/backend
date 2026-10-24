@@ -35,6 +35,7 @@ import {
   updateDynamicField
 } from './eim.controller';
 import { Router } from 'express';
+import nativeRouter from './eim.dynamo.routes';
 import { requireAuth, requireAdmin } from '../../middleware/auth';
 import { 
   getDashboardStats, 
@@ -80,6 +81,7 @@ const router = Router();
 
 router.use(requireAuth);
 router.use((req,res,next) => req.method === 'GET' ? next() : requireAdmin(req,res,next));
+router.use((req,res,next) => process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRouter(req,res,next) : next());
 
 router.get('/dashboard-stats', getDashboardStats);
 

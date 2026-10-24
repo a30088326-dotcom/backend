@@ -7,6 +7,7 @@ import dayTypesRoutes from './day-types.routes';
 import calendarGroupsRoutes from './calendar-groups.routes';
 import holidayCalendarRoutes from './holiday-calendar.routes';
 import { v4 as uuidv4 } from 'uuid';
+import nativeRoutes from './native.routes';
 
 const router = Router();
 
@@ -226,4 +227,4 @@ router.post('/employee/:employeeId/assign', auth, adminOnly, async (req: AuthReq
   }
 });
 
-export default router;
+export default process.env.DATABASE_PROVIDER==='dynamodb'?nativeRoutes:router;

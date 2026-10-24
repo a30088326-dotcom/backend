@@ -20,6 +20,7 @@ export const publicTool = (t: Tool, c?: Context) => {
   return { id: t.id, label: !canManage && t.id === 'performance.assessment' ? 'Save my self-assessment' : !canManage && t.id === 'performance.action' ? 'Share or acknowledge my review' : t.label, description: t.description, module: t.module, risk: t.risk, fields, examples: t.examples };
 };
 export async function invoke(context: Context, toolId: string, input: unknown, requestId: string, conversationId?: string) {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return (await import('./runtime.dynamo')).invoke(context,toolId,input,requestId,conversationId);
   const tool = tools.find(t => t.id === toolId);
   ensure(tool, 'Unknown assistant action.', 404);
   const conv = await conversation(context, conversationId);
@@ -72,6 +73,7 @@ export async function invoke(context: Context, toolId: string, input: unknown, r
 }
 
 export async function confirm(context: Context, id: string, cancel = false) {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return (await import('./runtime.dynamo')).confirm(context,id,cancel);
   const connection = await db.getConnection(); const lock = `hrbot:${id}`;
   try {
     const [[locked]] = await connection.query<RowDataPacket[]>('SELECT GET_LOCK(?,0) AS acquired', [lock]);

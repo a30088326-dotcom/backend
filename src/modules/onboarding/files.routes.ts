@@ -6,6 +6,7 @@ import { db } from '../../lib/db';
 import { requireAuth } from '../../middleware/auth';
 import { canManageCandidate } from '../../middleware/module-action';
 import { organizationAccess } from '../../shared/services/organization.service';
+import nativeRoutes from './files.dynamo';
 
 export function portableFileUrl(value: string | null) {
   if (!value) return value;
@@ -13,6 +14,7 @@ export function portableFileUrl(value: string | null) {
   return pathname.startsWith('/uploads/') ? '/api/files/'+encodeURIComponent(decodeURIComponent(pathname.slice(9))) : value;
 }
 const router=Router();
+router.use((req, res, next) => process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRoutes(req, res, next) : next());
 router.use(requireAuth);
 router.get('/:filename',async(req,res,next)=>{
   try {

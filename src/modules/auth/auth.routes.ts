@@ -8,6 +8,11 @@ import { requireAuth } from '../../middleware/auth';
 import { Request } from 'express';
 import { RowDataPacket } from 'mysql2';
 import { identityFor } from '../../shared/services/organization.service';
+import { repository } from '../../storage/repository';
+const useDynamo = () => process.env.DATABASE_PROVIDER === 'dynamodb';
+const userPermissions = async (userId: string) => useDynamo()
+  ? repository().find('user_module_permissions', p => p.userId === userId)
+  : (await db.query<RowDataPacket[]>('SELECT moduleId, moduleAccess, canView, canCreate, canEdit, canDelete, canApprove, canExport, dataScope FROM user_module_permissions WHERE userId = ?', [userId]))[0];
 
 const router = Router();
 
@@ -23,8 +28,9 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
-    const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
-    const user = rows[0];
+    const user = useDynamo()
+      ? (await repository().find('users', u => String(u.email).localeCompare(email, undefined, { sensitivity: 'base' }) === 0))[0]
+      : (await db.query<RowDataPacket[]>('SELECT * FROM users WHERE email = ? LIMIT 1', [email]))[0][0];
 
     if (!user || !user.isActive) {
       return res.status(401).json({ success: false, message: 'Invalid credentials or inactive account' });
@@ -45,10 +51,7 @@ router.post('/login', async (req, res) => {
     });
 
     // Fetch module permissions
-    const [permRows] = await db.query<RowDataPacket[]>(
-      'SELECT moduleId, moduleAccess, canView, canCreate, canEdit, canDelete, canApprove, canExport, dataScope FROM user_module_permissions WHERE userId = ?',
-      [user.id]
-    );
+    const permRows = await userPermissions(user.id);
     const permissions = permRows.map((p: any) => ({
       moduleId: p.moduleId,
       moduleAccess: Boolean(p.moduleAccess),
@@ -77,7 +80,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Invalid input', errors: err.errors });
+      return res.status(400).json({ success: false, message: 'Invalid input', errors: err.issues });
     }
     console.error(err);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -87,8 +90,9 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', requireAuth, async (req: Request, res) => {
   try {
-    const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user?.userId]);
-    const user = rows[0];
+    const user = useDynamo()
+      ? await repository().get('users', { id: req.user?.userId })
+      : (await db.query<RowDataPacket[]>('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user?.userId]))[0][0];
 
     if (!user || !user.isActive) {
       return res.status(401).json({ success: false, message: 'User not found or inactive' });
@@ -97,10 +101,7 @@ router.get('/me', requireAuth, async (req: Request, res) => {
     const identity = await identityFor(user.id);
 
     // Fetch module permissions
-    const [permRows] = await db.query<RowDataPacket[]>(
-      'SELECT moduleId, moduleAccess, canView, canCreate, canEdit, canDelete, canApprove, canExport, dataScope FROM user_module_permissions WHERE userId = ?',
-      [user.id]
-    );
+    const permRows = await userPermissions(user.id);
     const permissions = permRows.map((p: any) => ({
       moduleId: p.moduleId,
       moduleAccess: Boolean(p.moduleAccess),
@@ -135,6 +136,13 @@ router.get('/me', requireAuth, async (req: Request, res) => {
 router.post('/change-password', requireAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = z.object({ currentPassword: z.string(), newPassword: z.string().min(3).max(72) }).parse(req.body);
+    if (useDynamo()) {
+      const user = await repository().get('users', { id: req.user.userId });
+      if (!user || !await bcrypt.compare(currentPassword, user.password || '')) return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+      const password = await bcrypt.hash(newPassword, 12);
+      await repository().replace('users', { ...user, password, mustChangePassword: 0 });
+      return res.json({ success: true });
+    }
     const [rows] = await db.query('SELECT password FROM users WHERE id=?', [req.user.userId]);
     if (!rows[0] || !await bcrypt.compare(currentPassword, rows[0].password || '')) return res.status(400).json({ success:false, message:'Current password is incorrect.' });
     await db.query('UPDATE users SET password=?,mustChangePassword=0,updatedAt=NOW() WHERE id=?', [await bcrypt.hash(newPassword, 12),req.user.userId]);

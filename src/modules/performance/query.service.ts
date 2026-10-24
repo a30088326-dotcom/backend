@@ -1,5 +1,3 @@
-import type { RowDataPacket } from 'mysql2/promise';
-import { db } from '../../lib/db';
 import type { Actor, Cycle, LibraryGoal, Review, Template } from './types';
 import { emptyAssessment } from './types';
 import { canManage, canRead, closureProblems, ensure, progress, score } from './rules';
@@ -29,7 +27,7 @@ export async function reviewDetails(actor: Actor, id: string) {
   ensure(canRead(actor, review), 'You do not have access to this review.', 403);
   const cycle = await store.get<Cycle>('cycles', review.cycleId);
   ensure(cycle.status !== 'DRAFT' || actor.admin, 'Review not available.', 404);
-  const [history] = await db.query<RowDataPacket[]>('SELECT id, event, at FROM hr_performance_audit WHERE entity_id = ? ORDER BY at DESC, id', [id]);
+  const history = await store.history(id);
   return { ...publicReview(actor, review, cycle), history };
 }
 export async function workspace(actor: Actor) {
@@ -46,7 +44,7 @@ export async function workspace(actor: Actor) {
     // The invited reviewer receives only the shared summary, never other reviews/ratings.
     managerComment: r.manager.sharedAt ? r.manager.comment : '',
   })));
-  const [notifications] = await db.query<RowDataPacket[]>('SELECT id, review_id AS reviewId, message, read_at AS readAt, at FROM hr_performance_notifications WHERE user_id = ? ORDER BY at DESC LIMIT 50', [actor.userId]);
+  const notifications = await store.notifications(actor.userId);
   const cycles = allCycles.filter(c => actor.admin || (actor.executive && c.status !== 'DRAFT') || cycleIds.has(c.id))
     .map(c => ({ ...c, employeeIds: actor.admin || actor.executive ? c.employeeIds : c.employeeIds.filter(id => canRead(actor, { employeeId: id })) }));
   const reviews = visible.map(r => {

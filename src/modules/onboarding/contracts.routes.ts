@@ -8,8 +8,10 @@ import { validate } from '../../middleware/validate';
 import { createContractSchema, signContractSchema } from '../../lib/validations';
 import { sendEmail } from '../../lib/email';
 import { requireModuleAction, canManageCandidate } from '../../middleware/module-action';
+import nativeRoutes from './contracts.dynamo';
 
 const router = Router();
+router.use((req, res, next) => process.env.DATABASE_PROVIDER === 'dynamodb' ? nativeRoutes(req, res, next) : next());
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

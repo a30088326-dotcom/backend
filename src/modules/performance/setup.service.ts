@@ -4,6 +4,7 @@ import type { Actor, Cycle, LibraryGoal, Review, Template } from './types';
 import { emptyAssessment } from './types';
 import { cycleSchema, dateSchema, ensure, idSchema, librarySchema, sum, equalWeight, templateSchema, validateCycle, validateTemplate } from './rules';
 import * as store from './store';
+import { launchCycleNative } from './launch.dynamo';
 
 export async function saveTemplate(actor: Actor, input: unknown, id?: string) {
   ensure(actor.admin, 'Only HR administrators can configure templates.', 403);
@@ -29,7 +30,7 @@ export async function deleteTemplate(actor: Actor, id: string) {
   ensure(actor.admin, 'Only HR administrators can delete templates.', 403);
   return store.transaction(async connection => {
     await store.get<Template>('templates', id, connection, true);
-    await connection.query('DELETE FROM hr_performance_templates WHERE id = ?', [id]);
+    await store.removeEntity('templates', id, connection);
     await store.audit(id, actor, 'TEMPLATE_DELETED', connection);
     return { deleted: true };
   });
@@ -49,6 +50,7 @@ export async function saveCycle(actor: Actor, input: unknown, id?: string) {
 }
 export async function transitionCycle(actor: Actor, id: string, action: string) {
   ensure(actor.admin, 'Only HR administrators can change cycle status.', 403);
+  if (process.env.DATABASE_PROVIDER === 'dynamodb' && action === 'launch') return launchCycleNative(actor, id);
   return store.transaction(async connection => {
     const cycle = await store.get<Cycle>('cycles', id, connection, true);
     if (action === 'launch') {
@@ -78,11 +80,7 @@ export async function transitionCycle(actor: Actor, id: string, action: string) 
     } else if (action === 'archive') {
       ensure(cycle.status === 'CLOSED', 'Only closed cycles can be archived.', 409); cycle.status = 'ARCHIVED';
     } else if (action === 'delete') {
-      await connection.query('DELETE n FROM hr_performance_notifications n INNER JOIN hr_performance_reviews r ON n.review_id = r.id WHERE r.cycle_id = ?', [id]);
-      await connection.query('DELETE a FROM hr_performance_audit a INNER JOIN hr_performance_reviews r ON a.entity_id = r.id WHERE r.cycle_id = ?', [id]);
-      await connection.query('DELETE FROM hr_performance_reviews WHERE cycle_id = ?', [id]);
-      await connection.query('DELETE FROM hr_performance_audit WHERE entity_id = ?', [id]);
-      await connection.query('DELETE FROM hr_performance_cycles WHERE id = ?', [id]);
+      await store.removeCycleRecords(id, connection);
       return { deleted: true };
     } else ensure(false, 'Unknown cycle action.');
     await store.save('cycles', cycle, connection); await store.audit(id, actor, `CYCLE_${action.toUpperCase()}`, connection);
@@ -105,7 +103,7 @@ export async function deleteLibraryGoal(actor: Actor, id: string) {
   ensure(actor.admin, 'Only HR administrators can delete goals from the library.', 403);
   return store.transaction(async connection => {
     await store.get('library', id, connection, true);
-    await connection.query('DELETE FROM hr_performance_library WHERE id = ?', [id]);
+    await store.removeEntity('library', id, connection);
     await store.audit(id, actor, 'LIBRARY_GOAL_DELETED', connection);
     return { deleted: true };
   });

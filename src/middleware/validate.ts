@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError, ZodSchema } from 'zod';
+import { StorageConflictError } from '../storage/dynamodb';
 
 // ─── Zod Validation Middleware ────────────────────────────────────────────────
 
@@ -8,7 +9,7 @@ export function validate(schema: ZodSchema) {
     const result = schema.safeParse(req.body);
 
     if (!result.success) {
-      const errors = (result.error as ZodError).errors.map(e => ({
+      const errors = (result.error as ZodError).issues.map(e => ({
         field: e.path.join('.'),
         message: e.message,
       }));
@@ -34,11 +35,15 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ): void {
-  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+  const route = req.route?.path || req.path.replace(/(\/api\/invites)\/[^/]+/, '$1/[redacted]');
+  console.error(`[ERROR] ${req.method} ${route}:`, err.message);
 
-  res.status(500).json({
+  const declaredStatus = Number((err as any).status || (err as any).statusCode);
+  const status = err instanceof StorageConflictError ? 409 : err instanceof ZodError ? 400
+    : declaredStatus >= 400 && declaredStatus < 500 ? declaredStatus : 500;
+  res.status(status).json({
     success: false,
-    message: process.env.NODE_ENV === 'production'
+    message: status === 409 && err instanceof StorageConflictError ? 'This record changed or duplicates an existing record. Refresh and try again.' : status === 400 && err instanceof ZodError ? 'Invalid input.' : process.env.NODE_ENV === 'production' && status === 500
       ? 'Internal server error'
       : err.message,
   });

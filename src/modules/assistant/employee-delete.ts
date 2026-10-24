@@ -1,3 +1,5 @@
+import { useDynamo } from './native-data';
+import * as native from './employee-delete.dynamo';
 import { z } from 'zod';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { db } from '../../lib/db';
@@ -43,8 +45,8 @@ export const deleteEmployeeTool:Tool={
   description:'Remove a non-Owner employee and supported dependent records. Shared reporting obligations and stored files must be resolved first. A minimal deletion audit receipt remains.',examples:['Delete employee EMP-027'],
   fields:[{name:'employeeNumber',label:'Exact employee number',required:true},{name:'confirmation',label:'Type DELETE to confirm permanent removal',required:true}],
   schema:z.object({employeeNumber:z.string().trim().min(1).max(60),confirmation:z.literal('DELETE')}).strict(),
-  prepare:async(c,v)=>{const p=await plan(c,v.employeeNumber);return {args:{employeeNumber:p.e.employeeNumber,confirmation:v.confirmation},summary:`PERMANENTLY DELETE ${p.e.name} (${p.e.employeeNumber}) and their login. Cannot be undone without a backup. Dependent rows: ${p.counts.map(r=>`${r.table}: ${r.count}`).join('; ')}. A minimal deletion audit receipt is retained.`,before:p.counts};},
-  execute:async(c,v)=>{const conn=await db.getConnection();try{await conn.beginTransaction();const target=c.employees.find(e=>e.employeeNumber===v.employeeNumber);ensure(target,'Employee not found.');await conn.query('SELECT id FROM employee_information_employees WHERE id=? FOR UPDATE',[target.id]);const p=await plan(c,v.employeeNumber,conn);
+  prepare:async(c,v)=>{if(useDynamo())return native.prepare(c,v);const p=await plan(c,v.employeeNumber);return {args:{employeeNumber:p.e.employeeNumber,confirmation:v.confirmation},summary:`PERMANENTLY DELETE ${p.e.name} (${p.e.employeeNumber}) and their login. Cannot be undone without a backup. Dependent rows: ${p.counts.map(r=>`${r.table}: ${r.count}`).join('; ')}. A minimal deletion audit receipt is retained.`,before:p.counts};},
+  execute:async(c,v)=>{if(useDynamo())return native.execute(c,v);const conn=await db.getConnection();try{await conn.beginTransaction();const target=c.employees.find(e=>e.employeeNumber===v.employeeNumber);ensure(target,'Employee not found.');await conn.query('SELECT id FROM employee_information_employees WHERE id=? FOR UPDATE',[target.id]);const p=await plan(c,v.employeeNumber,conn);
     if(p.exists('hr_performance_reviews','data')){
       const [reviews]=await conn.query<RowDataPacket[]>('SELECT id,data FROM hr_performance_reviews WHERE employee_id<>? FOR UPDATE',[p.e.id]);
       for(const r of reviews){const d=typeof r.data==='string'?JSON.parse(r.data):r.data;ensure(!(d.feedback||[]).some((f:any)=>f.reviewerId===p.e.id)&&!(d.development||[]).some((a:any)=>a.ownerId===p.e.id),'Reassign this employee’s feedback invitations and development actions before deletion.');}

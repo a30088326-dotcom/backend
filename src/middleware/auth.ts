@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../lib/db';
 import { RowDataPacket } from 'mysql2';
+import { repository } from '../storage/repository';
 
 // ─── JWT Payload Type ─────────────────────────────────────────────────────────
 
@@ -64,8 +65,9 @@ export async function requireAuth(
 
   try {
     // Verify user still exists and is active
-    const [rows] = await db.query<RowDataPacket[]>('SELECT id, email, role, isActive, mustChangePassword FROM users WHERE id = ? LIMIT 1', [payload.userId]);
-    const user = rows[0];
+    const user = process.env.DATABASE_PROVIDER === 'dynamodb'
+      ? await repository().get('users', { id: payload.userId })
+      : (await db.query<RowDataPacket[]>('SELECT id, email, role, isActive, mustChangePassword FROM users WHERE id = ? LIMIT 1', [payload.userId]))[0][0];
 
     if (!user || !user.isActive) {
       res.status(401).json({ success: false, message: 'Account not found or inactive' });

@@ -18,11 +18,13 @@ import {
 import { ProbationConfirmationService } from './confirmationService';
 import { organizationAccess } from '../../shared/services/organization.service';
 import multer from 'multer';
+import { repository } from '../../storage/repository';
+import { randomUUID } from 'node:crypto';
 
 // Multer Config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+  filename: (req, file, cb) => cb(null, `${randomUUID()}-${file.originalname}`)
 });
 const upload = multer({ storage,limits:{fileSize:10*1024*1024,files:4} });
 
@@ -53,7 +55,7 @@ router.post('/confirm-permanent/:employeeId', requireAuth, requireAdmin, async (
     res.json({ success: true, data: result });
   } catch (error: any) {
     console.error('Confirm Permanent Error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || 500).json({ success: false, message: error.message });
   }
 });
 
@@ -65,7 +67,9 @@ router.get('/transition-log/:employeeId', requireAuth, async (req: any, res: any
     if (!access.admin && !access.visibleIds.includes(req.params.employeeId)) {
       return res.status(403).json({ success: false, message: 'You do not have access to this employee history.' });
     }
-    const [logs] = await db.query('SELECT * FROM employee_information_employment_type_transitions WHERE employeeId = ? ORDER BY createdAt DESC', [req.params.employeeId]);
+    const logs = process.env.DATABASE_PROVIDER === 'dynamodb'
+      ? (await repository().find('employee_information_employment_type_transitions', r => r.employeeId === req.params.employeeId)).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))
+      : (await db.query('SELECT * FROM employee_information_employment_type_transitions WHERE employeeId = ? ORDER BY createdAt DESC', [req.params.employeeId]))[0];
     res.json({ success: true, data: logs });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

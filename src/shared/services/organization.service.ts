@@ -1,14 +1,18 @@
 import { randomUUID } from 'crypto';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { db } from '../../lib/db';
+import { repository, type RepositorySession } from '../../storage/repository';
+import { directoryNative } from './organization.dynamo';
+export { changeReportingNative } from './organization.dynamo';
 
 export const RANKS = ['OWNER', 'CEO', 'DIRECTOR', 'DEPARTMENT_HEAD', 'MANAGER', 'TEAM_LEAD', 'SENIOR', 'EMPLOYEE'] as const;
 export type Rank = typeof RANKS[number];
 export type DirectoryEmployee = { id: string; userId: string | null; name: string; employeeNumber: string; department: string; designation: string; organizationalRank: Rank; managerId: string | null; managerName: string; active: boolean };
-type Connection = typeof db | PoolConnection;
+type Connection = typeof db | PoolConnection | RepositorySession;
 
 export async function directory(connection: Connection = db): Promise<DirectoryEmployee[]> {
-  const [rows] = await connection.query<RowDataPacket[]>(`SELECT e.id, e.userId, e.reportingManagerId AS managerId, e.organizationalRank,
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return directoryNative(connection === db ? undefined : connection as RepositorySession);
+  const [rows] = await (connection as typeof db).query<RowDataPacket[]>(`SELECT e.id, e.userId, e.reportingManagerId AS managerId, e.organizationalRank,
     COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.firstName, p.lastName)), ''), NULLIF(TRIM(CONCAT_WS(' ', e.firstName, e.lastName)), ''), e.callingName, e.employeeNumber) AS name,
     COALESCE(e.employeeNumber, e.employeeNo, '') AS employeeNumber,
     COALESCE(d.name, e.department, '') AS department, COALESCE(j.name, e.designation, '') AS designation,
@@ -33,7 +37,9 @@ export function descendants(employees: { id: string; managerId: string | null; a
 }
 
 export async function organizationAccess(userId: string) {
-  const [rows] = await db.query<RowDataPacket[]>('SELECT role FROM users WHERE id = ? AND isActive = 1', [userId]);
+  const rows = process.env.DATABASE_PROVIDER === 'dynamodb'
+    ? [await repository().get('users', { id: userId })].filter(u => u && Number(u.isActive) === 1)
+    : (await db.query<RowDataPacket[]>('SELECT role FROM users WHERE id = ? AND isActive = 1', [userId]))[0];
   const employees = await directory(); const own = employees.find(e => e.userId === userId && e.active);
   const rank = own?.organizationalRank || null;
   const admin = ['SUPER_ADMIN', 'ADMIN'].includes(rows[0]?.role);

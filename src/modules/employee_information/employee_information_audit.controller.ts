@@ -10,8 +10,10 @@ import { syncEmployeeMappings, updateEmployeeReporting } from '../../shared/serv
 import { getProfileExtras, identifiedContacts } from './profile-requests';
 import { organizationModuleScope } from '../../middleware/module-action';
 import { onboardingContact, populateDetailLabels } from './onboarding-mapping';
+import * as native from './employee.native.http';
 // GET all employees for the advanced EIMS search grid
 export const getEmployees = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.getEmployees(req,res);
   try {
     const query = `
       SELECT 
@@ -51,6 +53,7 @@ export const getEmployees = async (req: Request, res: Response) => {
 };
 
 export const getEmployeeById = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.getEmployeeById(req,res);
   try {
     const id = req.params.id as string;
     const access = await organizationAccess(req.user!.userId);
@@ -175,6 +178,7 @@ export const getEmployeeById = async (req: Request, res: Response) => {
 
 // GET /me — fetch the currently logged-in user's employee profile
 export const getMyEmployee = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.getMyEmployee(req,res);
   try {
     const userId = (req as any).user?.userId;
     if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
@@ -329,6 +333,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
 };
 
 export const createEmployee = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.createEmployee(req,res);
   try {
     const originalBody = structuredClone(req.body);
     if (req.body.employmentDetails?.companyId !== undefined) req.body.workstationDetails = { ...req.body.workstationDetails, companyId: req.body.employmentDetails.companyId };
@@ -672,6 +677,7 @@ export const createEmployee = async (req: Request, res: Response) => {
 };
 
 export const uploadAttachment = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.uploadAttachment(req,res);
   try {
     const employeeId = req.params.employeeId as string;
     const files = req.files as Express.Multer.File[];
@@ -708,6 +714,7 @@ export const uploadAttachment = async (req: Request, res: Response) => {
 };
 
 export const getAttachments = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.getAttachments(req,res);
   try {
     const employeeId = req.params.employeeId as string;
     const access = await organizationAccess(req.user!.userId);
@@ -745,6 +752,7 @@ export const getAttachments = async (req: Request, res: Response) => {
 };
 
 export const deleteAttachment = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.deleteAttachment(req,res);
   try {
     const id = req.params.id as string;
     const [[attachment]] = await db.query<RowDataPacket[]>('SELECT employeeId FROM employee_information_employee_attachments WHERE id=?',[id]);
@@ -760,6 +768,7 @@ export const deleteAttachment = async (req: Request, res: Response) => {
 };
 
 export const uploadProfilePicture = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.uploadProfilePicture(req,res);
   try {
     const file = req.file;
     if (!file) {
@@ -774,6 +783,7 @@ export const uploadProfilePicture = async (req: Request, res: Response) => {
 };
 
 export const checkEmployeeNo = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.checkEmployeeNo(req,res);
   try {
     const empNo = req.params.empNo as string;
     const [rows] = await db.query<RowDataPacket[]>('SELECT id FROM employee_information_employees WHERE employeeNo = ? LIMIT 1', [empNo]);
@@ -785,6 +795,7 @@ export const checkEmployeeNo = async (req: Request, res: Response) => {
 };
 
 export const updateEmployee = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.updateEmployee(req,res);
   try {
     const originalBody = structuredClone(req.body);
     if(req.body.employmentDetails?.companyId !== undefined) req.body.workstationDetails={...req.body.workstationDetails,companyId:req.body.employmentDetails.companyId};
@@ -1126,6 +1137,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
 
 
 export const convertCandidate = async (req: Request, res: Response) => {
+  if (process.env.DATABASE_PROVIDER === 'dynamodb') return native.convertCandidate(req,res);
   try {
     const candidateId = req.params.candidateId as string;
     

@@ -31,8 +31,8 @@ export const librarySchema = z.object({
   milestones: z.array(z.object({ id: text, title: text, weight: z.number().positive().max(100), complete: z.literal(false).default(false) })).max(30),
 });
 export const assessmentSchema = z.object({
-  answers: z.record(longText), goalRatings: z.record(z.number().int().min(1).max(5)),
-  competencyRatings: z.record(z.number().int().min(1).max(5)), comment: longText,
+  answers: z.record(z.string(), longText), goalRatings: z.record(z.string(), z.number().int().min(1).max(5)),
+  competencyRatings: z.record(z.string(), z.number().int().min(1).max(5)), comment: longText,
   overallRating: z.number().int().min(1).max(5).optional(),
 });
 export const checkinSchema = z.object({

@@ -4,6 +4,7 @@ import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { db } from '../../../lib/db';
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(d=>!isNaN(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d,'Invalid date');
 const input=z.object({leaveTypeId:z.string().uuid(),startDate:date,endDate:date,totalDays:z.coerce.number().positive(),halfDayType:z.enum(['NONE','FIRST_HALF','SECOND_HALF']).default('NONE'),reason:z.string().max(4000).optional(),comments:z.string().max(4000).optional(),applicantId:z.string().uuid().optional(),coveringEmployeeId:z.string().nullish(),medCertSubmitted:z.boolean().optional(),medCertRefNo:z.string().optional(),medCertIssuedDate:z.string().nullish(),attachmentUrl:z.string().nullish()});
+export const leaveInput = input;
 export class LeaveError extends Error { constructor(public status:number,message:string){super(message);} }
 const check=(test:unknown,message:string,status=400)=>{if(!test)throw new LeaveError(status,message);};
 async function transaction<T>(fn:(c:PoolConnection)=>Promise<T>) {const c=await db.getConnection();try{await c.beginTransaction();const r=await fn(c);await c.commit();return r;}catch(e){await c.rollback();throw e;}finally{c.release();}}
@@ -12,9 +13,11 @@ async function managerUser(c:PoolConnection,employeeId:string) {
   return row?.id as string|undefined;
 }
 export async function submitLeave(actor:{userId:string;role:string},payload:unknown) {
+  if(process.env.DATABASE_PROVIDER==='dynamodb')return (await import('./application.dynamo')).persistLeaveDynamo(actor,payload,false);
   return persistLeave(actor, payload, false);
 }
 export async function importApprovedLeave(actor:{userId:string;role:string},payload:unknown) {
+  if(process.env.DATABASE_PROVIDER==='dynamodb')return (await import('./application.dynamo')).persistLeaveDynamo(actor,payload,true);
   check(['ADMIN','SUPER_ADMIN'].includes(actor.role),'Administrator access is required for leave imports.',403);
   return persistLeave(actor, payload, true);
 }
@@ -75,6 +78,7 @@ async function persistLeave(actor:{userId:string;role:string},payload:unknown,ap
   });
 }
 export async function decideLeave(actor:{userId:string;role:string},id:string,action:string,comment?:string) {
+  if(process.env.DATABASE_PROVIDER==='dynamodb')return (await import('./application.dynamo')).decideLeaveDynamo(actor,id,action,comment);
   check(['APPROVED','REJECTED'].includes(action),'Invalid approval action.');
   if(action==='REJECTED')check(!!comment?.trim(),'A rejection reason is required.');
   return transaction(async c=>{
@@ -93,6 +97,7 @@ export async function decideLeave(actor:{userId:string;role:string},id:string,ac
   });
 }
 export async function cancelLeave(userId:string,id:string,reason?:string) {
+  if(process.env.DATABASE_PROVIDER==='dynamodb')return (await import('./application.dynamo')).cancelLeaveDynamo(userId,id,reason);
   return transaction(async c=>{
     const [[app]]=await c.query<RowDataPacket[]>('SELECT * FROM leave_applications WHERE id=? FOR UPDATE',[id]);check(app,'Leave request not found.',404);
     check(app.applicantId===userId,'You can cancel only your own requests.',403);

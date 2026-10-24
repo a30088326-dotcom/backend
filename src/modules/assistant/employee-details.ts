@@ -1,3 +1,4 @@
+import { useDynamo, nativeRows } from './native-data';
 import { z } from 'zod';
 import type { RowDataPacket } from 'mysql2/promise';
 import { db } from '../../lib/db';
@@ -35,7 +36,7 @@ export const employeeDetailsTools: Tool[] = [{
       old=v.field==='employmentType'?record.employmentType?.name:record[v.field]??record.employmentDetails?.[v.field];
       patch.employmentDetails={[v.field]:v.value};
       if(v.field==='employmentType') {
-        const [types]=await db.query<RowDataPacket[]>('SELECT id,name FROM employment_types WHERE LOWER(name)=?',[v.value.toLowerCase()]);
+        const [types]=useDynamo()?[await nativeRows('employment_types',row=>row.name.toLowerCase()===v.value.toLowerCase())]:await db.query<RowDataPacket[]>('SELECT id,name FROM employment_types WHERE LOWER(name)=?',[v.value.toLowerCase()]);
         ensure(types.length===1,'Choose an existing, exact employment type name from EIM Admin.');patch.employmentDetails.employmentTypeId=types[0].id;
       }
     }

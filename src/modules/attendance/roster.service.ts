@@ -1,5 +1,7 @@
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { randomUUID } from 'crypto';
+import type { RepositorySession } from '../../storage/repository';
+import { rosterDefaultNative, assignRosterNative, validateRosterShiftsNative } from './native-services';
 
 export class RosterError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -11,7 +13,8 @@ export function validRosterDate(value: unknown): value is string {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
-export async function rosterDefault(connection: PoolConnection, groupId: string) {
+export async function rosterDefault(connection: PoolConnection | RepositorySession, groupId: string) {
+  if ('find' in connection) return rosterDefaultNative(connection,groupId);
   const [groups] = await connection.query<RowDataPacket[]>(
     "SELECT id FROM attendance_roster_groups WHERE id=? AND status IN ('Active','Draft') FOR UPDATE", [groupId]);
   if (!groups.length) throw new RosterError(400, 'Selected roster is unavailable.');
@@ -23,7 +26,8 @@ export async function rosterDefault(connection: PoolConnection, groupId: string)
 }
 
 // Caller owns the transaction. Locking the employee serializes simultaneous assignments.
-export async function assignRoster(connection: PoolConnection, employeeId: string, groupId: string, start: string, end?: string | null) {
+export async function assignRoster(connection: PoolConnection | RepositorySession, employeeId: string, groupId: string, start: string, end?: string | null) {
+  if ('find' in connection) return assignRosterNative(connection,employeeId,groupId,start,end);
   if (!validRosterDate(start) || (end != null && (!validRosterDate(end) || end < start))) {
     throw new RosterError(400, 'Enter valid assignment dates; the end date cannot precede the start date.');
   }
@@ -49,7 +53,8 @@ export async function assignRoster(connection: PoolConnection, employeeId: strin
   return { id, rosterGroupId: groupId, shiftId };
 }
 
-export async function validateRosterShifts(connection: PoolConnection, shifts: unknown, calendar: unknown, preservedShiftIds: string[] = []) {
+export async function validateRosterShifts(connection: PoolConnection | RepositorySession, shifts: unknown, calendar: unknown, preservedShiftIds: string[] = []) {
+  if ('find' in connection) return validateRosterShiftsNative(connection,shifts,calendar,preservedShiftIds);
   if (!Array.isArray(shifts) || !shifts.length || shifts.some(s => !s || typeof s !== 'object') || shifts.filter(s => s.isDefault === true || s.isDefault === 1).length !== 1 ||
       shifts.some(s => typeof s.shiftId !== 'string' || !s.shiftId) || new Set(shifts.map(s => s.shiftId)).size !== shifts.length) {
     throw new RosterError(400, 'Select valid, unique shifts and exactly one default shift.');

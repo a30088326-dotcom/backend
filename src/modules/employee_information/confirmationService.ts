@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { RowDataPacket } from 'mysql2';
 import { LeaveRulesEvaluator } from '../leave-management/services/leaveRulesEvaluator';
 import { v4 as uuidv4 } from 'uuid';
+import { confirmPermanentNative } from './confirmation.native';
 
 export interface ConfirmationResult {
   success: boolean;
@@ -27,6 +28,7 @@ export class ProbationConfirmationService {
     permanentEffectiveDate: Date,
     performedByUserId: string
   ): Promise<ConfirmationResult> {
+    if (process.env.DATABASE_PROVIDER === 'dynamodb') return confirmPermanentNative(employeeId, permanentEffectiveDate, performedByUserId);
 
     const [empRows] = await db.query<RowDataPacket[]>('SELECT * FROM employee_information_employees WHERE id = ? LIMIT 1', [employeeId]);
     const employee = empRows[0];
