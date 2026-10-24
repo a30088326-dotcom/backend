@@ -6,7 +6,8 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev --ignore-scripts
 
-FROM node:22-bookworm-slim
+FROM node:22-alpine
+RUN apk upgrade --no-cache && apk add --no-cache tzdata
 ENV NODE_ENV=production PORT=3001 TZ=Asia/Colombo
 WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
