@@ -43,7 +43,16 @@ const template = {
       {Effect:'Allow',Action:['logs:CreateLogStream','logs:PutLogEvents'],Resource:att('LogGroup','Arn')},
       {Effect:'Allow',Action:['secretsmanager:GetSecretValue'],Resource:ref('RuntimeSecret')}
     ])]}),
-    InfrastructureRole:role('ecs.amazonaws.com',{ManagedPolicyArns:[sub('arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices')]}),
+    InfrastructureRole:role('ecs.amazonaws.com',{
+      ManagedPolicyArns:[sub('arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices')],
+      // Express lifecycle hooks also inspect account networking, alarms and their own ECS service.
+      // These calls are absent from the AWS managed policy and fail initial provisioning without them.
+      Policies:[policy([
+        {Effect:'Allow',Action:['ec2:DescribeAccountAttributes'],Resource:'*'},
+        {Effect:'Allow',Action:['ecs:DescribeServices','ecs:UpdateService'],Resource:sub('arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/${AppName}-api/${AppName}-api')},
+        {Effect:'Allow',Action:['cloudwatch:DescribeAlarms'],Resource:sub('arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*')}
+      ])]
+    }),
     TaskRole:role('ecs-tasks.amazonaws.com',{Policies:[policy([
       {Effect:'Allow',Action:['dynamodb:DescribeTable','dynamodb:GetItem','dynamodb:BatchGetItem','dynamodb:Scan','dynamodb:Query','dynamodb:PutItem','dynamodb:UpdateItem','dynamodb:DeleteItem','dynamodb:BatchWriteItem','dynamodb:ConditionCheckItem'],Resource:[sub('arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-*'),sub('arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-*/index/*')]},
       {Effect:'Allow',Action:['s3:ListBucket'],Resource:att('UploadsBucket','Arn')},
