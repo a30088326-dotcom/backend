@@ -28,6 +28,13 @@ import { errorHandler, notFoundHandler } from './middleware/validate';
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
+// Authenticated HR responses must never be stored by shared hosting proxies.
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  res.vary('Authorization');
+  next();
+});
+
 // ─── Core Middleware ──────────────────────────────────────────────────────────
 
 const allowedOrigins=new Set([
