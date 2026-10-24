@@ -390,6 +390,8 @@
     },
     "ApiService": {
       "Type": "AWS::ECS::ExpressGatewayService",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
       "Condition": "DeployApi",
       "Properties": {
         "ServiceName": {

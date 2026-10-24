@@ -58,7 +58,7 @@ const template = {
       {Effect:'Allow',Action:['s3:ListBucket'],Resource:att('UploadsBucket','Arn')},
       {Effect:'Allow',Action:['s3:GetObject','s3:PutObject','s3:DeleteObject'],Resource:sub('${UploadsBucket.Arn}/uploads/*')}
     ])]}),
-    ApiService:{Type:'AWS::ECS::ExpressGatewayService',Condition:'DeployApi',Properties:{
+    ApiService:{Type:'AWS::ECS::ExpressGatewayService',DeletionPolicy:'Retain',UpdateReplacePolicy:'Retain',Condition:'DeployApi',Properties:{
       ServiceName:sub('${AppName}-api'),Cluster:ref('Cluster'),InfrastructureRoleArn:att('InfrastructureRole','Arn'),ExecutionRoleArn:att('ExecutionRole','Arn'),TaskRoleArn:att('TaskRole','Arn'),Cpu:'256',Memory:'512',HealthCheckPath:'/health',
       NetworkConfiguration:{Subnets:ref('SubnetIds')},ScalingTarget:{MinTaskCount:1,MaxTaskCount:2,AutoScalingMetric:'AVERAGE_CPU',AutoScalingTargetValue:70},
       PrimaryContainer:{Image:ref('ApiImage'),ContainerPort:3001,AwsLogsConfiguration:{LogGroup:ref('LogGroup'),LogStreamPrefix:'api'},
