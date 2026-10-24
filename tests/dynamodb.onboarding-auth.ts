@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { unlink } from 'node:fs/promises';
+import { unlink, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
 import bcrypt from 'bcryptjs';
@@ -129,4 +129,16 @@ test('native contracts serialize duplicate creation and preserve immutable signe
   assert.equal((await request('candidate','GET',reread.body.data.signatureUrl)).status,200);
   assert.equal((await request('outsider','GET',reread.body.data.signatureUrl)).status,404);
   assert.equal((await request('admin','PUT',`/api/contracts/${contract.id}`,{templateContent:'Changed',fieldValues:{}})).status,409);
+}));
+test('staff can read their manager profile image while unrelated avatars and identity documents remain private', async () => fixture(async ({ repo, ids, request, cleanup }: any) => {
+  const managerId=randomUUID(),staffId=randomUUID(),avatar=`manager-avatar-${randomUUID()}.png`,document=`manager-document-${randomUUID()}.png`;
+  await mkdir('uploads',{recursive:true});
+  for(const filename of [avatar,document]) { await writeFile(path.join('uploads',filename),png); cleanup.add(filename); }
+  const user=await repo.get('users',{id:ids.candidate});await repo.replace('users',{...user,role:'EMPLOYEE'});
+  await repo.create('employee_information_employees',{id:managerId,userId:ids.admin,employeeNumber:'MANAGER-TEST',employeeNo:'MANAGER-TEST',status:'Active',isActive:1,avatar:`/api/files/${avatar}`});
+  await repo.create('employee_information_employees',{id:staffId,userId:ids.candidate,employeeNumber:'STAFF-TEST',employeeNo:'STAFF-TEST',status:'Active',isActive:1,reportingManagerId:managerId});
+  await repo.create('documents',{id:randomUUID(),candidateId:ids.admin,type:'NATIONAL_ID',fileUrl:`/api/files/${document}`,status:'PENDING'});
+  assert.equal((await request('candidate','GET',`/api/files/${avatar}`)).status,200);
+  assert.equal((await request('outsider','GET',`/api/files/${avatar}`)).status,404);
+  assert.equal((await request('candidate','GET',`/api/files/${document}`)).status,404);
 }));

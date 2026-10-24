@@ -34,6 +34,10 @@ router.get('/:filename', route(async (req, res) => {
     || avatars.some(e => e.userId === user.userId) || attachments.some(a => employees.some(e => e.id === a.employeeId && e.userId === user.userId));
   if (!permitted && attachments.length) permitted = (await repo.find('leave_applications', l => l.approverId === user.userId && fileNameInUrl(l.attachmentUrl) === filename && attachments.some(a => a.employeeId === l.employeeId))).length > 0;
   if (!permitted && user.role === 'SUPER_ADMIN') permitted = hasReference;
+  if (!permitted && avatars.length && ['ADMIN','EMPLOYEE'].includes(user.role)) {
+    const own = (await repo.find('employee_information_employees', e => e.userId === user.userId && e.status === 'Active' && Number(e.isActive ?? 1) === 1))[0];
+    permitted = !!own && avatars.some(e => e.id === own.reportingManagerId && e.status === 'Active' && Number(e.isActive ?? 1) === 1);
+  }
   const canView = (moduleId: string) => {
     const p = grants.find(p => p.moduleId === moduleId);
     return p ? !!p.moduleAccess && !!p.canView : user.role === 'ADMIN';
